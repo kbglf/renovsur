@@ -38,8 +38,14 @@ export default async function TarifsPage({ searchParams }: Props) {
       <div className="text-center">
         <h1 className="text-3xl font-bold text-slate-900">Payez à l&apos;acte</h1>
         <p className="mx-auto mt-3 max-w-2xl text-slate-600">
-          Pas d&apos;abonnement. Vous achetez un rapport quand vous en avez besoin —
+          Pas d&apos;abonnement. Choisissez l&apos;offre qui correspond à votre besoin —
           avant de signer un devis à plusieurs milliers d&apos;euros.
+        </p>
+        <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
+          <Link href="/analyser" className="font-medium text-emerald-600 hover:underline">
+            1 aperçu gratuit à vie
+          </Link>{" "}
+          (score + alertes, sans détail) sur la page Analyser.
         </p>
       </div>
 
@@ -49,25 +55,7 @@ export default async function TarifsPage({ searchParams }: Props) {
         </div>
       )}
 
-      <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-700">
-        <p className="font-semibold text-slate-900">Comment ça marche</p>
-        <ol className="mt-3 list-decimal space-y-2 pl-5">
-          <li>
-            <strong>1 aperçu gratuit à vie</strong> — score + nombre d&apos;alertes (sans détail).
-          </li>
-          <li>
-            <strong>19 €</strong> — Rapport Essentiel (alertes, prix, légal).
-          </li>
-          <li>
-            <strong>39 €</strong> — Rapport Négociation (Essentiel + lettre).
-          </li>
-          <li>
-            <strong>49 €</strong> — pack 3 rapports pour comparer plusieurs artisans.
-          </li>
-        </ol>
-      </div>
-
-      <div className="mt-12">
+      <div className="mt-10">
         <PricingCards />
       </div>
 
