@@ -184,6 +184,12 @@ export function refreshReportScore(report: AnalysisResult): void {
     report.priceComparisons,
   );
   report.scoreLabel = scoreLabel(report.score);
+  report.summary = buildSummary(
+    report.score,
+    report.alerts,
+    report.input.totalAmount,
+    report.totalSavingsEstimate,
+  );
 }
 
 function scoreLabel(score: number): string {

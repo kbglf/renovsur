@@ -206,22 +206,20 @@ export function ResultatsClient({
         </div>
       </div>
 
-      {!isPaid && (
-        <div className="no-print mt-6 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-center">
-            <p className="text-2xl font-bold text-red-600">{alertCounts.critical}</p>
-            <p className="text-xs font-medium text-red-800">Alertes critiques</p>
-          </div>
-          <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-center">
-            <p className="text-2xl font-bold text-amber-600">{alertCounts.warning}</p>
-            <p className="text-xs font-medium text-amber-800">Vigilance</p>
-          </div>
-          <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-center">
-            <p className="text-2xl font-bold text-slate-700">{legalScorePercent}%</p>
-            <p className="text-xs font-medium text-slate-600">Conformité légale</p>
-          </div>
+      <div className="no-print mt-6 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-center">
+          <p className="text-2xl font-bold text-red-600">{alertCounts.critical}</p>
+          <p className="text-xs font-medium text-red-800">Alertes critiques</p>
         </div>
-      )}
+        <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-center">
+          <p className="text-2xl font-bold text-amber-600">{alertCounts.warning}</p>
+          <p className="text-xs font-medium text-amber-800">Vigilance</p>
+        </div>
+        <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-center">
+          <p className="text-2xl font-bold text-slate-700">{legalScorePercent}%</p>
+          <p className="text-xs font-medium text-slate-600">Conformité légale</p>
+        </div>
+      </div>
 
       <div className="mt-6">
         <Disclaimer />
