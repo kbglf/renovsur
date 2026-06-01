@@ -34,8 +34,12 @@ export function AlertCard({ alert, blurred }: { alert: Alert; blurred?: boolean 
             → {alert.recommendation}
           </p>
           {alert.savingsEstimate && alert.savingsEstimate > 0 && (
-            <p className="mt-2 text-sm font-semibold text-emerald-700">
-              Économie potentielle : {formatEuro(alert.savingsEstimate)}
+            <p className="mt-2 text-sm text-emerald-800">
+              <span className="font-semibold">
+                Économie possible : {formatEuro(alert.savingsEstimate)}
+              </span>
+              {" "}
+              (si négociation — pas un montant à payer en plus)
             </p>
           )}
         </div>

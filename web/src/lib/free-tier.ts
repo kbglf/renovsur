@@ -109,6 +109,6 @@ function buildTeaserSummary(
   return (
     `Score ${full.score}/100 — ${counts.total} alerte(s) dont ${counts.critical} critique(s). ` +
     `Conformité légale estimée : ${legalPercent}%.` +
-    `${amount} Le rapport complet détaille chaque point et les économies possibles.`
+    `${amount} Le rapport complet détaille chaque point et les économies éventuelles (estimation).`
   );
 }

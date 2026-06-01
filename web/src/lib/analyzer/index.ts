@@ -239,17 +239,15 @@ function buildSummary(score: number, alerts: Alert[], total: number): string {
   }
 
   if (score < 40) {
-    const savingsLine = isMeaningfulSavings(savings, total)
-      ? ` Des leviers financiers estimés à ${savings.toLocaleString("fr-FR")} € restent possibles après correction des points bloquants.`
-      : "";
     return (
-      `Devis de ${amount} € : ${critical} point(s) critique(s) et ${warning} point(s) de vigilance — le score reflète surtout des risques (conformité, entreprise, paiement), pas seulement le prix.${savingsLine}`
+      `Devis de ${amount} € : ${critical} point(s) critique(s) et ${warning} point(s) de vigilance. ` +
+      `Priorité : corriger les risques (entreprise, conformité, paiement) avant de signer ou de négocier le prix.`
     );
   }
 
   if (critical > 0 || warning > 0) {
     const savingsLine = isMeaningfulSavings(savings, total)
-      ? ` Marge de négociation possible : jusqu'à ${savings.toLocaleString("fr-FR")} €.`
+      ? ` Économie possible (estimation) : jusqu'à ${savings.toLocaleString("fr-FR")} € si vous négociez les points signalés.`
       : "";
     return `Ce devis de ${amount} € comporte ${critical} alerte(s) critique(s) et ${warning} point(s) de vigilance.${savingsLine}`;
   }

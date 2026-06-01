@@ -14,8 +14,9 @@ import { Disclaimer } from "@/components/disclaimer";
 import { PaymentNotice } from "@/components/payment-notice";
 import { RegistryVerificationCards } from "@/components/registry-verification-card";
 import { formatEuro, formatDate } from "@/lib/utils";
-import { isMeaningfulSavings } from "@/lib/analyzer";
 import { NegotiationLetterPanel } from "@/components/negotiation-letter-panel";
+import { buildSavingsDisplay } from "@/lib/savings-display";
+import { SavingsInsightCard } from "@/components/savings-insight-card";
 import { QuoteRecapCard } from "@/components/quote-recap-card";
 import { PriceComparisonSection } from "@/components/price-comparison-section";
 import { loadReportFromSession } from "@/lib/report-session";
@@ -134,6 +135,10 @@ export function ResultatsClient({
   const alertCounts = initialAlertCounts ?? countAlerts(report.alerts);
   const legalScorePercent = initialLegalPercent ?? computeLegalPercent(report.legalChecks);
   const isPaid = report.isPaid;
+  const savingsDisplay =
+    isPaid && report.input.totalAmount > 0
+      ? buildSavingsDisplay(report.alerts, report.input, report.score)
+      : null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
@@ -177,28 +182,26 @@ export function ResultatsClient({
               Montant analysé : {formatEuro(report.input.totalAmount)} TTC
             </p>
           )}
-          {isPaid &&
-            realSavings !== undefined &&
-            isMeaningfulSavings(realSavings, report.input.totalAmount) && (
-              <p className="mt-2 text-sm font-semibold text-emerald-700">
-                Leviers financiers possibles : jusqu&apos;à {formatEuro(realSavings)}
-                {report.input.totalAmount > 0 &&
-                  ` (sur ${formatEuro(report.input.totalAmount)} TTC)`}
-              </p>
-            )}
           {report.score < 40 && (
             <p className="mt-2 text-sm font-medium text-red-800">
-              Score bas = risques bloquants (légal, entreprise, paiement) — à traiter avant
-              de négocier le prix.
+              Le score mesure surtout la sécurité du devis (légal, artisan, paiement), pas
+              le prix seul.
             </p>
           )}
           {!isPaid && (
             <p className="mt-2 text-sm font-medium text-amber-800">
-              Montant des économies : visible après déblocage (19 €)
+              Détail des économies possibles : dans le rapport complet (19 €).
+            </p>
+          )}
+          {savingsDisplay && savingsDisplay.showProminent && (
+            <p className="mt-2 text-sm font-semibold text-emerald-700">
+              Économie possible (estimation) : jusqu&apos;à {formatEuro(savingsDisplay.total)}
             </p>
           )}
         </div>
       </div>
+
+      {savingsDisplay && <SavingsInsightCard savings={savingsDisplay} />}
 
       {!isPaid && (
         <div className="no-print mt-6 grid gap-3 sm:grid-cols-3">
