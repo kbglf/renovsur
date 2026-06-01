@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { analyzeQuote } from "@/lib/analyzer";
-import { saveReport } from "@/lib/db";
+import { getReport, saveReport } from "@/lib/db";
 import type { AnalysisResult } from "@/lib/types";
 import { jsonWithCors, optionsResponse } from "@/lib/cors";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -71,15 +71,20 @@ export async function POST(req: NextRequest) {
     const quota = await checkFreeQuota(ip, deviceId, quoteText);
 
     if (!quota.allowed && quota.reason === "duplicate" && quota.existingReportId) {
-      return jsonWithCors(
-        {
-          error: "Ce devis a déjà un rapport. Débloquez-le ou analysez un autre devis.",
-          code: "DUPLICATE_QUOTE",
-          existingReportId: quota.existingReportId,
-        },
-        origin,
-        { status: 409 },
-      );
+      const existing = await getReport(quota.existingReportId);
+      if (existing) {
+        return jsonWithCors(
+          {
+            error: "Ce devis a déjà un rapport. Débloquez-le ou analysez un autre devis.",
+            code: "DUPLICATE_QUOTE",
+            existingReportId: quota.existingReportId,
+            report: existing.isPaid ? existing : toFreePreview(existing),
+          },
+          origin,
+          { status: 409 },
+        );
+      }
+      // Entrée quota orpheline (rapport perdu) — on laisse passer une nouvelle analyse
     }
 
     const credit = await getCredits(deviceId);
@@ -149,6 +154,7 @@ export async function POST(req: NextRequest) {
       return jsonWithCors(
         {
           id: full.id,
+          report: full,
           score: full.score,
           scoreLabel: full.scoreLabel,
           summary: full.summary,
@@ -166,6 +172,7 @@ export async function POST(req: NextRequest) {
     const preview = toFreePreview(full);
     return jsonWithCors({
       id: full.id,
+      report: preview,
       score: preview.score,
       scoreLabel: preview.scoreLabel,
       summary: preview.summary,

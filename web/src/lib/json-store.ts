@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { head, put } from "@vercel/blob";
+import { get, put } from "@vercel/blob";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 
@@ -12,14 +12,20 @@ function blobPathname(filename: string): string {
   return `renovsur/${filename}`;
 }
 
+async function readBlobJson<T>(filename: string, fallback: T): Promise<T> {
+  const result = await get(blobPathname(filename), { access: "private" });
+  if (!result) return fallback;
+
+  const text = await new Response(result.stream).text();
+  if (!text.trim()) return fallback;
+  return JSON.parse(text) as T;
+}
+
 /** Lecture/écriture JSON : disque local en dev, Vercel Blob en production */
 export async function readJsonFile<T>(filename: string, fallback: T): Promise<T> {
   if (useBlobStorage()) {
     try {
-      const meta = await head(blobPathname(filename));
-      const res = await fetch(meta.url);
-      if (!res.ok) return fallback;
-      return (await res.json()) as T;
+      return await readBlobJson(filename, fallback);
     } catch {
       return fallback;
     }
@@ -46,6 +52,7 @@ export async function writeJsonFile<T>(filename: string, data: T): Promise<void>
     return;
   }
 
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(path.join(DATA_DIR, filename), content, "utf-8");
+  const filePath = path.join(DATA_DIR, filename);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, content, "utf-8");
 }

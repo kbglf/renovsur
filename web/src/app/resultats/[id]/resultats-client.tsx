@@ -13,26 +13,60 @@ import { CopyReportLink } from "@/components/copy-report-link";
 import { Disclaimer } from "@/components/disclaimer";
 import { PaymentNotice } from "@/components/payment-notice";
 import { formatEuro, formatDate } from "@/lib/utils";
+import { loadReportFromSession } from "@/lib/report-session";
+import { countAlerts, computeLegalPercent } from "@/lib/free-tier";
 
 export function ResultatsClient({
+  reportId,
   initialReport,
-  alertCounts,
-  legalScorePercent,
+  alertCounts: initialAlertCounts,
+  legalScorePercent: initialLegalPercent,
   realSavings,
   showPaidSuccess,
   paymentNotice,
 }: {
-  initialReport: AnalysisResult;
-  alertCounts: AlertCounts;
-  legalScorePercent: number;
+  reportId: string;
+  initialReport: AnalysisResult | null;
+  alertCounts?: AlertCounts;
+  legalScorePercent?: number;
   realSavings?: number;
   showPaidSuccess?: boolean;
   paymentNotice?: "cancel" | "error" | null;
 }) {
-  const [report, setReport] = useState(initialReport);
+  const [report, setReport] = useState<AnalysisResult | null>(initialReport);
+  const [loading, setLoading] = useState(!initialReport);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingFull, setLoadingFull] = useState(false);
 
+  useEffect(() => {
+    if (initialReport) return;
+
+    const cached = loadReportFromSession(reportId);
+    if (cached) {
+      setReport(cached);
+      setLoading(false);
+      return;
+    }
+
+    fetch(`/api/reports/${reportId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.id) {
+          setReport(data as AnalysisResult);
+        } else {
+          setLoadError(
+            "Rapport introuvable sur le serveur. Relancez une analyse depuis la page Analyser.",
+          );
+        }
+      })
+      .catch(() => {
+        setLoadError("Impossible de charger le rapport. Vérifiez votre connexion.");
+      })
+      .finally(() => setLoading(false));
+  }, [reportId, initialReport]);
+
   async function loadFullReport() {
+    if (!report) return;
     setLoadingFull(true);
     try {
       const res = await fetch(`/api/reports/${report.id}`);
@@ -46,7 +80,8 @@ export function ResultatsClient({
   }
 
   useEffect(() => {
-    if (!report.isPaid) {
+    if (!report || !report.isPaid) {
+      if (!report) return;
       const interval = setInterval(() => {
         fetch(`/api/reports/${report.id}`)
           .then((r) => r.json())
@@ -58,8 +93,37 @@ export function ResultatsClient({
       return () => clearInterval(interval);
     }
     loadFullReport();
-  }, [report.id, report.isPaid]);
+  }, [report?.id, report?.isPaid]);
 
+  if (loading) {
+    return (
+      <div className="py-24 text-center text-slate-600">
+        <p className="font-medium">Chargement de votre rapport…</p>
+      </div>
+    );
+  }
+
+  if (!report || loadError) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-20 text-center">
+        <p className="text-6xl font-bold text-emerald-600">404</p>
+        <h1 className="mt-4 text-xl font-bold text-slate-900">Rapport introuvable</h1>
+        <p className="mt-2 text-slate-600">
+          {loadError ??
+            "Ce rapport n&apos;existe plus ou le lien est incorrect. Faites une nouvelle analyse."}
+        </p>
+        <Link
+          href="/analyser"
+          className="mt-8 inline-block rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
+        >
+          Analyser un devis
+        </Link>
+      </div>
+    );
+  }
+
+  const alertCounts = initialAlertCounts ?? countAlerts(report.alerts);
+  const legalScorePercent = initialLegalPercent ?? computeLegalPercent(report.legalChecks);
   const isPaid = report.isPaid;
 
   return (

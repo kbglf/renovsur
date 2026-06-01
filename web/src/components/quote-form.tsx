@@ -6,6 +6,8 @@ import { Loader2, Upload, FileText, Sparkles } from "lucide-react";
 import type { Region, WorkType } from "@/lib/types";
 import { SAMPLE_QUOTE, MAX_QUOTE_LENGTH, MIN_QUOTE_LENGTH } from "@/lib/constants";
 import { PdfDropzone } from "@/components/pdf-dropzone";
+import { saveReportToSession } from "@/lib/report-session";
+import type { AnalysisResult } from "@/lib/types";
 
 const WORK_TYPES: { value: WorkType; label: string }[] = [
   { value: "peinture", label: "Peinture" },
@@ -76,6 +78,9 @@ export function QuoteForm() {
 
       const data = await res.json();
       if (res.status === 409 && data.existingReportId) {
+        if (data.report) {
+          saveReportToSession(data.report as AnalysisResult);
+        }
         router.push(`/resultats/${data.existingReportId}`);
         return;
       }
@@ -89,6 +94,9 @@ export function QuoteForm() {
         throw new Error(data.error || "Erreur lors de l'analyse");
       }
 
+      if (data.report) {
+        saveReportToSession(data.report as AnalysisResult);
+      }
       router.push(`/resultats/${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue");

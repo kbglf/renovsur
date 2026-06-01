@@ -4,7 +4,8 @@ import { getReport } from "@/lib/db";
 import { countAlerts, computeLegalPercent, toFreePreview } from "@/lib/free-tier";
 import { verifyAndFulfillCheckout } from "@/lib/payment-verify";
 import { DEVICE_COOKIE } from "@/lib/constants";
-import { notFound, redirect } from "next/navigation";
+import { isValidReportId } from "@/lib/validate-id";
+import { redirect } from "next/navigation";
 import { ResultatsClient } from "./resultats-client";
 
 interface Props {
@@ -15,11 +16,17 @@ interface Props {
 export default async function ResultatsPage({ params, searchParams }: Props) {
   const { id } = await params;
   const search = await searchParams;
+
+  if (!isValidReportId(id)) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-20 text-center">
+        <p className="text-lg font-semibold text-slate-900">Lien de rapport invalide</p>
+      </div>
+    );
+  }
+
   const cookieStore = await cookies();
   const deviceId = cookieStore.get(DEVICE_COOKIE)?.value ?? "unknown";
-
-  let report = await getReport(id);
-  if (!report) notFound();
 
   let paymentNotice: "cancel" | "error" | null = null;
 
@@ -35,17 +42,19 @@ export default async function ResultatsPage({ params, searchParams }: Props) {
     }
   }
 
-  const full = (await getReport(id)) ?? report;
-  const display = full.isPaid ? full : toFreePreview(full);
+  const report = await getReport(id);
+  const full = report;
+  const display = full ? (full.isPaid ? full : toFreePreview(full)) : null;
 
   return (
     <Suspense fallback={<div className="py-20 text-center text-slate-500">Chargement…</div>}>
       <ResultatsClient
+        reportId={id}
         initialReport={display}
-        alertCounts={countAlerts(full.alerts)}
-        legalScorePercent={computeLegalPercent(full.legalChecks)}
-        realSavings={full.isPaid ? full.totalSavingsEstimate : undefined}
-        showPaidSuccess={search.paid === "1" && full.isPaid}
+        alertCounts={full ? countAlerts(full.alerts) : undefined}
+        legalScorePercent={full ? computeLegalPercent(full.legalChecks) : undefined}
+        realSavings={full?.isPaid ? full.totalSavingsEstimate : undefined}
+        showPaidSuccess={search.paid === "1" && Boolean(full?.isPaid)}
         paymentNotice={paymentNotice}
       />
     </Suspense>
