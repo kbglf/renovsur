@@ -47,7 +47,7 @@ export function QuoteForm() {
     setWorkType("peinture");
     setRegion("ile-de-france");
     setSurfaceM2("35");
-    setTotalAmount("2532");
+    setTotalAmount("3355");
     setDepositPercent("45");
   }
 

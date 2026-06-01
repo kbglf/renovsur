@@ -53,7 +53,10 @@ export { isMeaningfulSavings } from "../price-savings";
 
 /** Surface en m² dans une ligne ou le devis (ex. « 35 m² ») */
 function extractSurfaceM2(text: string): number | undefined {
-  const match = text.match(/(\d+(?:[.,]\d+)?)\s*m[²2]\b/i);
+  // \b ne matche pas après « ² » (U+00B2) — les devis utilisent souvent m² en typographie française
+  const match = text.match(
+    /(\d+(?:[.,]\d+)?)\s*m(?:²|2)(?=\s|$|—|[^0-9a-zA-Z_])/i,
+  );
   if (!match) return undefined;
   const n = parseFloat(match[1].replace(",", "."));
   return n > 0 && n < 10_000 ? n : undefined;

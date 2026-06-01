@@ -1,4 +1,5 @@
 import { analyzeQuote } from "./analyzer";
+import { applyCompanyRegistryVerification } from "./siret-enrich";
 import { SAMPLE_QUOTE } from "./constants";
 import type { AnalysisResult } from "./types";
 
@@ -10,7 +11,7 @@ export function getExampleReport(): AnalysisResult {
     quoteText: SAMPLE_QUOTE,
     region: "ile-de-france",
     surfaceM2: 35,
-    totalAmount: 2532,
+    totalAmount: 3355,
     depositPercent: 45,
     hasDecennale: true,
     validityDays: 60,
@@ -22,34 +23,34 @@ export function getExampleReport(): AnalysisResult {
   report.plan = "negotiation";
   report.email = undefined;
 
-  report.siretVerification = {
-    siret: "12345678900012",
-    status: "invalid",
-    isActive: false,
-    verifiedAt: report.createdAt,
-    registryUrl: "",
-    summary:
-      "Numéro SIRET invalide (exemple fictif) — en situation réelle, un SIRET valide est vérifié au registre national.",
-  };
-
-  report.rgeVerification = {
-    required: false,
-    status: "not_required",
-    certificationCodes: [],
-    summary:
-      "Travaux de peinture — le label RGE n'est pas requis pour ce type de chantier.",
-    annuaireUrl: "https://france-renov.gouv.fr/annuaire-professionnels",
-  };
-
-  report.decennaleVerification = {
-    required: true,
-    status: "mentioned",
-    mentionedInQuote: true,
-    policyNumber: "DEC-2024-88921",
-    summary:
-      "Mention d'assurance décennale détectée dans le devis (exemple). En réel : confirmez auprès de l'assureur que la police est active.",
-    guideUrl: "https://www.service-public.fr/particuliers/vosdroits/F35741",
-  };
+  applyCompanyRegistryVerification(report, {
+    siret: {
+      siret: "12345678900012",
+      status: "invalid",
+      isActive: false,
+      verifiedAt: report.createdAt,
+      registryUrl: "",
+      summary:
+        "Numéro SIRET invalide (exemple fictif) — en situation réelle, un SIRET valide est vérifié au registre national.",
+    },
+    rge: {
+      required: false,
+      status: "not_required",
+      certificationCodes: [],
+      summary:
+        "Travaux de peinture — le label RGE n'est pas requis pour ce type de chantier.",
+      annuaireUrl: "https://france-renov.gouv.fr/annuaire-professionnels",
+    },
+    decennale: {
+      required: true,
+      status: "mentioned",
+      mentionedInQuote: true,
+      policyNumber: "DEC-2024-88921",
+      summary:
+        "Mention d'assurance décennale détectée dans le devis (exemple). En réel : confirmez auprès de l'assureur que la police est active.",
+      guideUrl: "https://www.service-public.fr/particuliers/vosdroits/F35741",
+    },
+  });
 
   return report;
 }
