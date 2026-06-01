@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "RénovSûr",
+    "slug": "renovsur",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#059669"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "fr.renovsur.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#059669"
+      },
+      "package": "fr.renovsur.app"
+    }
+  }
+}
