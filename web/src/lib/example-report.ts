@@ -9,6 +9,7 @@ export function getExampleReport(): AnalysisResult {
   const report = analyzeQuote({
     quoteText: SAMPLE_QUOTE,
     region: "ile-de-france",
+    surfaceM2: 35,
     depositPercent: 45,
     hasDecennale: true,
     validityDays: 60,

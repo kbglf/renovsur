@@ -119,8 +119,9 @@ export function detectScamPatterns(input: QuoteInput): Alert[] {
         "La DGCCRF signale régulièrement des artisans qui encaissent puis disparaissent.",
       recommendation:
         "Ne versez jamais plus de 30% d'acompte. Échelonnez le reste à l'avancement des travaux.",
-      savingsEstimate: Math.round(
-        input.totalAmount * ((input.depositPercent - 30) / 100),
+      savingsEstimate: Math.min(
+        Math.round(input.totalAmount * ((input.depositPercent - 30) / 100)),
+        input.totalAmount,
       ),
     });
   }

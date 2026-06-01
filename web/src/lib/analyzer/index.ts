@@ -72,6 +72,46 @@ function extractSiret(text: string): string | undefined {
   return match?.[1].replace(/\s/g, "");
 }
 
+/** Surface en m² dans une ligne ou le devis (ex. « 35 m² ») */
+function extractSurfaceM2(text: string): number | undefined {
+  const match = text.match(/(\d+(?:[.,]\d+)?)\s*m[²2]\b/i);
+  if (!match) return undefined;
+  const n = parseFloat(match[1].replace(",", "."));
+  return n > 0 && n < 10_000 ? n : undefined;
+}
+
+/**
+ * Estime un prix marché pour une ligne (uniquement si unité m² + quantité connue).
+ * Évite de comparer 980 € total à 28 €/m² sans surface — source du bug « économies > devis ».
+ */
+function estimateLineMarketTotal(
+  line: QuoteLine,
+  region: QuoteInput["region"],
+): number | null {
+  const lineType = detectWorkType(line.description);
+  const bench = BENCHMARKS[lineType];
+  if (bench.unit !== "m²") return null;
+
+  const qty =
+    line.quantity ??
+    extractSurfaceM2(line.description) ??
+    (line.unit?.toLowerCase().includes("m") ? line.quantity : undefined);
+  if (!qty || qty <= 0) return null;
+
+  const unitPrice = getRegionalPrice(bench.basePrice, region);
+  return Math.round(unitPrice * qty);
+}
+
+/** Somme des économies, plafonnée au montant TTC du devis */
+export function computeTotalSavingsEstimate(
+  alerts: Alert[],
+  totalAmount: number,
+): number {
+  if (totalAmount <= 0) return 0;
+  const raw = alerts.reduce((sum, a) => sum + (a.savingsEstimate ?? 0), 0);
+  return Math.min(Math.round(raw), totalAmount);
+}
+
 function buildPriceComparisons(input: QuoteInput): PriceComparison[] {
   const workType = input.workType || detectWorkType(input.quoteText);
   const benchmark = BENCHMARKS[workType];
@@ -93,20 +133,16 @@ function buildPriceComparisons(input: QuoteInput): PriceComparison[] {
 
   for (const line of input.lines.slice(0, 6)) {
     if (!line.total || line.total <= 0) continue;
-    const lineType = detectWorkType(line.description);
-    const lineBenchmark = BENCHMARKS[lineType];
-    const avg = getRegionalPrice(lineBenchmark.basePrice, input.region);
-    const estimatedMarket =
-      lineType === input.workType && input.surfaceM2
-        ? avg * input.surfaceM2
-        : avg;
+    const estimatedMarket = estimateLineMarketTotal(line, input.region);
+    if (estimatedMarket === null || estimatedMarket <= 0) continue;
+
     const deviation =
       ((line.total - estimatedMarket) / estimatedMarket) * 100;
     if (Math.abs(deviation) > 15) {
       comparisons.push({
         item: line.description.slice(0, 60),
         yourPrice: line.total,
-        marketAverage: Math.round(estimatedMarket),
+        marketAverage: estimatedMarket,
         deviationPercent: Math.round(deviation),
         status:
           deviation > 40 ? "very_high" : deviation > 20 ? "high" : "ok",
@@ -115,8 +151,10 @@ function buildPriceComparisons(input: QuoteInput): PriceComparison[] {
   }
 
   if (comparisons.length === 0 && input.totalAmount > 0) {
+    const surface =
+      input.surfaceM2 ?? extractSurfaceM2(input.quoteText) ?? 20;
     const estimatedMarket = getRegionalPrice(
-      benchmark.basePrice * (input.surfaceM2 || 20),
+      benchmark.basePrice * surface,
       input.region,
     );
     const deviation =
@@ -147,7 +185,10 @@ function buildPriceAlerts(comparisons: PriceComparison[]): Alert[] {
       description: `Vous payez ${c.yourPrice.toLocaleString("fr-FR")} € vs ${c.marketAverage.toLocaleString("fr-FR")} € en moyenne (+${c.deviationPercent}%).`,
       recommendation:
         "Demandez une justification écrite ou un devis concurrent pour négocier à la baisse.",
-      savingsEstimate: Math.max(0, c.yourPrice - c.marketAverage),
+      savingsEstimate: Math.min(
+        Math.max(0, c.yourPrice - c.marketAverage),
+        c.yourPrice,
+      ),
     }));
 }
 
@@ -190,13 +231,17 @@ function scoreLabel(score: number): string {
 
 function buildSummary(score: number, alerts: Alert[], total: number): string {
   const critical = alerts.filter((a) => a.severity === "critical").length;
-  const savings = alerts.reduce((s, a) => s + (a.savingsEstimate ?? 0), 0);
+  const savings = computeTotalSavingsEstimate(alerts, total);
 
   if (score >= 80) {
     return `Ce devis de ${total.toLocaleString("fr-FR")} € présente un profil globalement sain. Quelques vérifications restent recommandées avant signature.`;
   }
   if (critical > 0) {
-    return `Attention : ${critical} alerte(s) critique(s) détectée(s) sur ce devis de ${total.toLocaleString("fr-FR")} €. Potentiel d'économie estimé : ${savings.toLocaleString("fr-FR")} €.`;
+    const savingsLine =
+      savings > 0
+        ? ` Marge de négociation estimée : jusqu'à ${savings.toLocaleString("fr-FR")} € (sur ${total.toLocaleString("fr-FR")} €).`
+        : "";
+    return `Attention : ${critical} alerte(s) critique(s) détectée(s) sur ce devis de ${total.toLocaleString("fr-FR")} €.${savingsLine}`;
   }
   return `Ce devis de ${total.toLocaleString("fr-FR")} € mérite une analyse approfondie. Des écarts de prix et des manques légaux ont été identifiés.`;
 }
@@ -208,6 +253,7 @@ export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
     : parseLinesFromText(quoteText);
   const totalAmount = raw.totalAmount || extractTotal(quoteText, lines);
   const siret = raw.siret || extractSiret(quoteText);
+  const surfaceM2 = raw.surfaceM2 ?? extractSurfaceM2(quoteText);
 
   const input: QuoteInput = {
     artisanName: raw.artisanName,
@@ -216,7 +262,7 @@ export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
     lines,
     totalAmount,
     workType: raw.workType || detectWorkType(quoteText),
-    surfaceM2: raw.surfaceM2,
+    surfaceM2,
     region: raw.region || "autre",
     hasDecennale: raw.hasDecennale,
     validityDays: raw.validityDays,
@@ -237,9 +283,9 @@ export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
   const score = computeGlobalScore(legalScore, allAlerts, priceComparisons);
   const negotiationPoints = generateNegotiationPoints(input);
 
-  const totalSavingsEstimate = allAlerts.reduce(
-    (s, a) => s + (a.savingsEstimate ?? 0),
-    0,
+  const totalSavingsEstimate = computeTotalSavingsEstimate(
+    allAlerts,
+    totalAmount,
   );
 
   return {

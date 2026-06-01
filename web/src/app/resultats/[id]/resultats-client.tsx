@@ -173,7 +173,9 @@ export function ResultatsClient({
           )}
           {isPaid && realSavings !== undefined && realSavings > 0 && (
             <p className="mt-2 text-sm font-semibold text-emerald-700">
-              Économie potentielle estimée : {formatEuro(realSavings)}
+              Marge de négociation estimée : jusqu&apos;à {formatEuro(realSavings)}
+              {report.input.totalAmount > 0 &&
+                ` (sur ${formatEuro(report.input.totalAmount)} TTC)`}
             </p>
           )}
           {!isPaid && (
