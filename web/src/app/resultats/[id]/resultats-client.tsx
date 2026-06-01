@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Lock, Download, CheckCircle2, XCircle, PartyPopper, ShieldAlert } from "lucide-react";
+import { Lock, CheckCircle2, XCircle, PartyPopper, ShieldAlert } from "lucide-react";
 import type { AnalysisResult } from "@/lib/types";
 import type { AlertCounts } from "@/lib/free-tier";
 import { ScoreGauge } from "@/components/score-gauge";
@@ -14,6 +14,8 @@ import { Disclaimer } from "@/components/disclaimer";
 import { PaymentNotice } from "@/components/payment-notice";
 import { RegistryVerificationCards } from "@/components/registry-verification-card";
 import { formatEuro, formatDate } from "@/lib/utils";
+import { isMeaningfulSavings } from "@/lib/analyzer";
+import { NegotiationLetterPanel } from "@/components/negotiation-letter-panel";
 import { loadReportFromSession } from "@/lib/report-session";
 import { countAlerts, computeLegalPercent } from "@/lib/free-tier";
 
@@ -171,11 +173,19 @@ export function ResultatsClient({
               Montant analysé : {formatEuro(report.input.totalAmount)} TTC
             </p>
           )}
-          {isPaid && realSavings !== undefined && realSavings > 0 && (
-            <p className="mt-2 text-sm font-semibold text-emerald-700">
-              Marge de négociation estimée : jusqu&apos;à {formatEuro(realSavings)}
-              {report.input.totalAmount > 0 &&
-                ` (sur ${formatEuro(report.input.totalAmount)} TTC)`}
+          {isPaid &&
+            realSavings !== undefined &&
+            isMeaningfulSavings(realSavings, report.input.totalAmount) && (
+              <p className="mt-2 text-sm font-semibold text-emerald-700">
+                Leviers financiers possibles : jusqu&apos;à {formatEuro(realSavings)}
+                {report.input.totalAmount > 0 &&
+                  ` (sur ${formatEuro(report.input.totalAmount)} TTC)`}
+              </p>
+            )}
+          {report.score < 40 && (
+            <p className="mt-2 text-sm font-medium text-red-800">
+              Score bas = risques bloquants (légal, entreprise, paiement) — à traiter avant
+              de négocier le prix.
             </p>
           )}
           {!isPaid && (
@@ -330,35 +340,18 @@ export function ResultatsClient({
       )}
 
       {isPaid && report.plan === "negotiation" && (
-        <section className="mt-12 rounded-3xl border border-emerald-200 bg-emerald-50 p-8 print:break-inside-avoid">
-          <h2 className="text-xl font-bold text-emerald-950">Lettre de négociation</h2>
-          <div className="mt-4 rounded-2xl bg-white p-6 text-sm leading-relaxed text-slate-700">
-            <p>Objet : Demande de révision du devis travaux</p>
-            <p className="mt-4">Madame, Monsieur,</p>
-            <p className="mt-4">
-              Suite à l&apos;analyse de votre devis d&apos;un montant de{" "}
-              {formatEuro(report.input.totalAmount)}, plusieurs points nécessitent
-              clarification avant signature :
-            </p>
-            <ul className="mt-4 list-disc space-y-2 pl-5">
-              {report.negotiationPoints.map((p) => (
-                <li key={p}>{p}</li>
-              ))}
-            </ul>
-            <p className="mt-4">
-              Je vous prie de bien vouloir me transmettre un devis révisé sous 15 jours ouvrés.
-            </p>
-            <p className="mt-6">Cordialement,</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="no-print mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white"
-          >
-            <Download className="h-4 w-4" />
-            Imprimer / PDF
-          </button>
-        </section>
+        <NegotiationLetterPanel
+          advice={
+            report.negotiationAdvice?.length
+              ? report.negotiationAdvice
+              : (report.negotiationPoints ?? [])
+          }
+          letter={
+            report.negotiationLetter ||
+            "Lettre non disponible pour ce rapport. Relancez une analyse ou contactez le support."
+          }
+          artisanLabel={report.input.artisanName}
+        />
       )}
 
       {!isPaid && (

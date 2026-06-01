@@ -110,15 +110,20 @@ export function detectScamPatterns(input: QuoteInput): Alert[] {
     });
   }
 
-  if (input.depositPercent && input.depositPercent > 50) {
+  if (input.depositPercent && input.depositPercent > 30) {
     alerts.push({
       id: "scam-deposit",
-      severity: "critical",
-      title: "Acompte supérieur à 50%",
+      severity: input.depositPercent > 50 ? "critical" : "warning",
+      title:
+        input.depositPercent > 50
+          ? "Acompte supérieur à 50%"
+          : "Acompte supérieur à 30%",
       description:
-        "La DGCCRF signale régulièrement des artisans qui encaissent puis disparaissent.",
+        input.depositPercent > 50
+          ? "La DGCCRF signale régulièrement des artisans qui encaissent un acompte élevé puis disparaissent."
+          : `Un acompte de ${input.depositPercent}% dépasse la limite recommandée de 30%.`,
       recommendation:
-        "Ne versez jamais plus de 30% d'acompte. Échelonnez le reste à l'avancement des travaux.",
+        "Proposez 30% maximum à la commande, puis un échelonnement à l'avancement des travaux.",
       savingsEstimate: Math.min(
         Math.round(input.totalAmount * ((input.depositPercent - 30) / 100)),
         input.totalAmount,
@@ -129,39 +134,12 @@ export function detectScamPatterns(input: QuoteInput): Alert[] {
   return alerts;
 }
 
+/** @deprecated Utiliser generateNegotiationAdvice + buildNegotiationLetter */
 export function generateNegotiationPoints(input: QuoteInput): string[] {
-  const points: string[] = [];
-
-  if (!input.siret) {
-    points.push(
-      "Demandez le SIRET et vérifiez-le sur le registre du commerce avant signature.",
-    );
-  }
-
-  if (input.depositPercent && input.depositPercent > 30) {
-    points.push(
-      `Négociez l'acompte à 30% maximum (actuellement ${input.depositPercent}%).`,
-    );
-  }
-
-  points.push(
-    "Demandez 3 devis comparables et utilisez le moins cher comme levier de négociation.",
-  );
-  points.push(
-    "Exigez que les matériaux soient détaillés (marque, référence) pour éviter les substitutions.",
-  );
-  points.push(
-    "Proposez un échelonnement : 30% à la commande, 40% à mi-chantier, 30% à réception.",
-  );
-  points.push(
-    "Incluez une clause de pénalité de retard (150€/semaine est standard dans le BTP).",
-  );
-
-  if (input.totalAmount > 5000) {
-    points.push(
-      "Pour un montant > 5 000€, faites appel à un architecte ou un assistant à maîtrise d'ouvrage (10€/m²).",
-    );
-  }
-
-  return points;
+  return [
+    "Comparez au moins 3 devis avant signature.",
+    ...(input.depositPercent && input.depositPercent > 30
+      ? [`Négociez l'acompte (actuellement ${input.depositPercent} %).`]
+      : []),
+  ];
 }

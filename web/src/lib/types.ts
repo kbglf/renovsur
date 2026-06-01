@@ -74,7 +74,12 @@ export interface AnalysisResult {
   alerts: Alert[];
   priceComparisons: PriceComparison[];
   legalChecks: { label: string; passed: boolean; detail: string }[];
-  negotiationPoints: string[];
+  /** Conseils pour le particulier */
+  negotiationAdvice: string[];
+  /** Lettre formelle à envoyer à l'artisan */
+  negotiationLetter: string;
+  /** @deprecated Anciens rapports — préférer negotiationAdvice */
+  negotiationPoints?: string[];
   totalSavingsEstimate: number;
   isPaid: boolean;
   plan: "free" | "complete" | "negotiation";

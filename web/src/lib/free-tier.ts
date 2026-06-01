@@ -71,7 +71,8 @@ export function toFreePreview(full: AnalysisResult): AnalysisResult {
         ? c.detail
         : "Détail disponible dans le rapport complet.",
     })),
-    negotiationPoints: [],
+    negotiationAdvice: [],
+    negotiationLetter: "",
     totalSavingsEstimate: 0,
     isPaid: false,
     plan: "free",

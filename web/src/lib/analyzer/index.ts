@@ -7,7 +7,11 @@ import type {
   QuoteLine,
 } from "../types";
 import { runLegalChecks, computeLegalScore } from "./legal-checks";
-import { detectScamPatterns, generateNegotiationPoints } from "./scam-patterns";
+import { detectScamPatterns } from "./scam-patterns";
+import {
+  buildNegotiationLetter,
+  generateNegotiationAdvice,
+} from "./negotiation-letter";
 import {
   BENCHMARKS,
   detectWorkType,
@@ -70,6 +74,19 @@ function extractTotal(text: string, lines: QuoteLine[]): number {
 function extractSiret(text: string): string | undefined {
   const match = text.match(/\b(\d{3}\s?\d{3}\s?\d{3}\s?\d{5})\b/);
   return match?.[1].replace(/\s/g, "");
+}
+
+function extractDepositPercent(text: string): number | undefined {
+  const match = text.match(/acompte.{0,40}(\d+)\s*%/i);
+  if (!match) return undefined;
+  const n = parseInt(match[1], 10);
+  return n > 0 && n <= 100 ? n : undefined;
+}
+
+/** Afficher une marge € seulement si elle est significative */
+export function isMeaningfulSavings(savings: number, totalAmount: number): boolean {
+  if (savings <= 0 || totalAmount <= 0) return false;
+  return savings >= Math.max(100, Math.round(totalAmount * 0.05));
 }
 
 /** Surface en m² dans une ligne ou le devis (ex. « 35 m² ») */
@@ -231,19 +248,31 @@ function scoreLabel(score: number): string {
 
 function buildSummary(score: number, alerts: Alert[], total: number): string {
   const critical = alerts.filter((a) => a.severity === "critical").length;
+  const warning = alerts.filter((a) => a.severity === "warning").length;
   const savings = computeTotalSavingsEstimate(alerts, total);
+  const amount = total.toLocaleString("fr-FR");
 
   if (score >= 80) {
-    return `Ce devis de ${total.toLocaleString("fr-FR")} € présente un profil globalement sain. Quelques vérifications restent recommandées avant signature.`;
+    return `Ce devis de ${amount} € présente un profil globalement sain. Quelques vérifications restent recommandées avant signature.`;
   }
-  if (critical > 0) {
-    const savingsLine =
-      savings > 0
-        ? ` Marge de négociation estimée : jusqu'à ${savings.toLocaleString("fr-FR")} € (sur ${total.toLocaleString("fr-FR")} €).`
-        : "";
-    return `Attention : ${critical} alerte(s) critique(s) détectée(s) sur ce devis de ${total.toLocaleString("fr-FR")} €.${savingsLine}`;
+
+  if (score < 40) {
+    const savingsLine = isMeaningfulSavings(savings, total)
+      ? ` Des leviers financiers estimés à ${savings.toLocaleString("fr-FR")} € restent possibles après correction des points bloquants.`
+      : "";
+    return (
+      `Devis de ${amount} € : ${critical} point(s) critique(s) et ${warning} point(s) de vigilance — le score reflète surtout des risques (conformité, entreprise, paiement), pas seulement le prix.${savingsLine}`
+    );
   }
-  return `Ce devis de ${total.toLocaleString("fr-FR")} € mérite une analyse approfondie. Des écarts de prix et des manques légaux ont été identifiés.`;
+
+  if (critical > 0 || warning > 0) {
+    const savingsLine = isMeaningfulSavings(savings, total)
+      ? ` Marge de négociation possible : jusqu'à ${savings.toLocaleString("fr-FR")} €.`
+      : "";
+    return `Ce devis de ${amount} € comporte ${critical} alerte(s) critique(s) et ${warning} point(s) de vigilance.${savingsLine}`;
+  }
+
+  return `Ce devis de ${amount} € mérite une relecture attentive avant signature.`;
 }
 
 export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
@@ -266,7 +295,7 @@ export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
     region: raw.region || "autre",
     hasDecennale: raw.hasDecennale,
     validityDays: raw.validityDays,
-    depositPercent: raw.depositPercent,
+    depositPercent: raw.depositPercent ?? extractDepositPercent(quoteText),
     email: raw.email,
   };
 
@@ -281,27 +310,49 @@ export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
   });
 
   const score = computeGlobalScore(legalScore, allAlerts, priceComparisons);
-  const negotiationPoints = generateNegotiationPoints(input);
 
   const totalSavingsEstimate = computeTotalSavingsEstimate(
     allAlerts,
     totalAmount,
   );
 
+  const legalChecksMapped = legalChecks.map(({ label, passed, detail }) => ({
+    label,
+    passed,
+    detail,
+  }));
+
+  const negotiationAdvice = generateNegotiationAdvice(input, allAlerts);
+
+  const draftForLetter: AnalysisResult = {
+    id: "",
+    createdAt: new Date().toISOString(),
+    score,
+    scoreLabel: scoreLabel(score),
+    summary: "",
+    alerts: allAlerts,
+    priceComparisons,
+    legalChecks: legalChecksMapped,
+    negotiationAdvice,
+    negotiationLetter: "",
+    totalSavingsEstimate,
+    isPaid: false,
+    plan: "free",
+    input,
+  };
+  const negotiationLetter = buildNegotiationLetter(draftForLetter);
+
   return {
     id: randomUUID(),
-    createdAt: new Date().toISOString(),
+    createdAt: draftForLetter.createdAt,
     score,
     scoreLabel: scoreLabel(score),
     summary: buildSummary(score, allAlerts, totalAmount),
     alerts: allAlerts,
     priceComparisons,
-    legalChecks: legalChecks.map(({ label, passed, detail }) => ({
-      label,
-      passed,
-      detail,
-    })),
-    negotiationPoints,
+    legalChecks: legalChecksMapped,
+    negotiationAdvice,
+    negotiationLetter,
     totalSavingsEstimate,
     isPaid: false,
     plan: "free",
