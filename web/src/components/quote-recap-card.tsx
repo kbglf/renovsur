@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FileText, ChevronDown, ChevronUp } from "lucide-react";
 import type { AnalysisResult } from "@/lib/types";
 import { WORK_TYPE_LABELS, REGION_LABELS } from "@/lib/analyzer/price-benchmarks";
+import { extractQuoteTotals } from "@/lib/quote-parse";
 import { formatEuro } from "@/lib/utils";
 
 function isQuoteFullyHidden(text: string): boolean {
@@ -17,15 +18,20 @@ export function QuoteRecapCard({
   report: AnalysisResult;
   isPaid: boolean;
 }) {
-  const [showFullText, setShowFullText] = useState(false);
+  const [showSourceText, setShowSourceText] = useState(false);
   const { input } = report;
   const fullyHidden = isQuoteFullyHidden(input.quoteText);
   const showPreview = !fullyHidden && !isPaid;
-  const lines = input.lines.filter((l) => l.description?.trim() || l.total);
+  const workLines = input.lines.filter((l) => l.description?.trim() && l.total);
+  const totals = extractQuoteTotals(
+    fullyHidden ? "" : input.quoteText,
+  );
 
   const artisan =
     input.artisanName?.trim() ||
     input.quoteText.split("\n").find((l) => l.trim().length > 2)?.trim().slice(0, 80);
+
+  const displayTtc = totals.ttc ?? (input.totalAmount > 0 ? input.totalAmount : undefined);
 
   return (
     <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
@@ -34,8 +40,8 @@ export function QuoteRecapCard({
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-bold text-slate-900">Devis analysé</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Voici le document pris en compte pour ce rapport — vérifiez qu&apos;il
-            correspond bien au vôtre.
+            Un seul devis : le tableau liste les <strong>postes de travaux</strong>, les
+            totaux HT/TTC sont affichés une seule fois ci-dessous (pas mélangés aux lignes).
           </p>
 
           <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
@@ -75,19 +81,11 @@ export function QuoteRecapCard({
                 <dd className="text-slate-900">{input.depositPercent} %</dd>
               </div>
             )}
-            {input.totalAmount > 0 && (
-              <div>
-                <dt className="font-medium text-slate-500">Total TTC retenu</dt>
-                <dd className="font-semibold text-slate-900">
-                  {formatEuro(input.totalAmount)}
-                </dd>
-              </div>
-            )}
           </dl>
 
-          {lines.length > 0 && (
+          {workLines.length > 0 && (
             <div className="mt-5">
-              <p className="text-sm font-semibold text-slate-800">Postes détectés dans le devis</p>
+              <p className="text-sm font-semibold text-slate-800">Postes de travaux (hors totaux)</p>
               <div className="mt-2 overflow-x-auto rounded-xl border border-slate-100">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 text-left text-xs text-slate-600">
@@ -97,11 +95,11 @@ export function QuoteRecapCard({
                     </tr>
                   </thead>
                   <tbody>
-                    {lines.map((line, i) => (
+                    {workLines.map((line, i) => (
                       <tr key={`${line.description}-${i}`} className="border-t border-slate-100">
                         <td className="px-3 py-2 text-slate-800">{line.description}</td>
                         <td className="px-3 py-2 text-right font-medium text-slate-900">
-                          {line.total ? formatEuro(line.total) : "—"}
+                          {formatEuro(line.total!)}
                         </td>
                       </tr>
                     ))}
@@ -111,32 +109,61 @@ export function QuoteRecapCard({
             </div>
           )}
 
+          {(totals.ht || totals.tva || displayTtc) && (
+            <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/50 px-4 py-3">
+              <p className="text-sm font-semibold text-emerald-950">Totaux du devis</p>
+              <dl className="mt-2 grid gap-1 text-sm sm:grid-cols-3">
+                {totals.ht !== undefined && (
+                  <div>
+                    <dt className="text-slate-600">Total HT</dt>
+                    <dd className="font-semibold text-slate-900">{formatEuro(totals.ht)}</dd>
+                  </div>
+                )}
+                {totals.tva !== undefined && (
+                  <div>
+                    <dt className="text-slate-600">TVA</dt>
+                    <dd className="font-semibold text-slate-900">{formatEuro(totals.tva)}</dd>
+                  </div>
+                )}
+                {displayTtc !== undefined && (
+                  <div>
+                    <dt className="text-slate-600">Total TTC</dt>
+                    <dd className="font-semibold text-emerald-800">{formatEuro(displayTtc)}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
           {showPreview && (
-            <pre className="mt-4 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50 p-4 text-xs leading-relaxed text-slate-700">
-              {input.quoteText}
-            </pre>
+            <div className="mt-4">
+              <p className="text-xs font-medium text-slate-500">Extrait du texte source</p>
+              <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50 p-4 text-xs leading-relaxed text-slate-700">
+                {input.quoteText}
+              </pre>
+            </div>
           )}
 
           {!fullyHidden && isPaid && (
-            <div className="mt-4">
+            <div className="mt-4 border-t border-slate-100 pt-4">
               <button
                 type="button"
-                onClick={() => setShowFullText((v) => !v)}
-                className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:underline"
+                onClick={() => setShowSourceText((v) => !v)}
+                className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-emerald-700"
               >
-                {showFullText ? (
+                {showSourceText ? (
                   <>
                     <ChevronUp className="h-4 w-4" />
-                    Masquer le texte du devis
+                    Masquer le texte source du devis
                   </>
                 ) : (
                   <>
                     <ChevronDown className="h-4 w-4" />
-                    Voir le texte complet du devis
+                    Afficher le texte source du devis (copie brute)
                   </>
                 )}
               </button>
-              {showFullText && (
+              {showSourceText && (
                 <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50 p-4 text-xs leading-relaxed text-slate-700">
                   {input.quoteText}
                 </pre>
@@ -146,8 +173,8 @@ export function QuoteRecapCard({
 
           {fullyHidden && (
             <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              Texte intégral du devis : disponible dans le rapport complet (19 €).
-              Les postes et montants ci-dessus proviennent bien de votre analyse.
+              Texte intégral : dans le rapport complet (19 €). Les postes ci-dessus restent
+              fidèles à votre analyse.
             </p>
           )}
         </div>

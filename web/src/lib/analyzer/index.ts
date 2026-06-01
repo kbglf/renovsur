@@ -19,59 +19,7 @@ import {
   detectWorkType,
   getRegionalPrice,
 } from "./price-benchmarks";
-
-function parseLinesFromText(text: string): QuoteLine[] {
-  const lines: QuoteLine[] = [];
-  const rowPattern =
-    /^(.{5,80}?)\s+(\d+(?:[.,]\d+)?)\s*(?:€|eur)?\s*$/gim;
-
-  let match;
-  while ((match = rowPattern.exec(text)) !== null) {
-    const total = parseFloat(match[2].replace(",", "."));
-    if (!isNaN(total) && total > 0) {
-      lines.push({ description: match[1].trim(), total });
-    }
-  }
-
-  if (lines.length === 0) {
-    const chunks = text
-      .split(/\n/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 10 && /\d/.test(l));
-    for (const chunk of chunks.slice(0, 8)) {
-      const priceMatch = chunk.match(/(\d[\d\s.,]*)\s*€/);
-      if (priceMatch) {
-        const total = parseFloat(priceMatch[1].replace(/\s/g, "").replace(",", "."));
-        lines.push({
-          description: chunk.replace(priceMatch[0], "").trim() || chunk,
-          total,
-        });
-      }
-    }
-  }
-
-  return lines;
-}
-
-function extractTotal(text: string, lines: QuoteLine[]): number {
-  const totalMatch = text.match(
-    /total\s+(?:ttc|g[ée]n[ée]ral)?\s*[:\s]*(\d[\d\s.,]*)\s*€/i,
-  );
-  if (totalMatch) {
-    return parseFloat(totalMatch[1].replace(/\s/g, "").replace(",", "."));
-  }
-  if (lines.length > 0) {
-    return lines.reduce((s, l) => s + (l.total ?? 0), 0);
-  }
-  const anyPrice = text.match(/(\d[\d\s.,]{2,})\s*€/g);
-  if (anyPrice?.length) {
-    const nums = anyPrice.map((p) =>
-      parseFloat(p.replace(/[^\d.,]/g, "").replace(",", ".")),
-    );
-    return Math.max(...nums);
-  }
-  return 0;
-}
+import { extractTotalFromText, parseLinesFromText } from "../quote-parse";
 
 function extractSiret(text: string): string | undefined {
   const match = text.match(/\b(\d{3}\s?\d{3}\s?\d{3}\s?\d{5})\b/);
@@ -314,7 +262,7 @@ export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
   const lines = raw.lines?.length
     ? raw.lines
     : parseLinesFromText(quoteText);
-  const totalAmount = raw.totalAmount || extractTotal(quoteText, lines);
+  const totalAmount = raw.totalAmount || extractTotalFromText(quoteText, lines);
   const siret = raw.siret || extractSiret(quoteText);
   const surfaceM2 = raw.surfaceM2 ?? extractSurfaceM2(quoteText);
 
