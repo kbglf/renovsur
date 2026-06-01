@@ -81,9 +81,20 @@ export function toFreePreview(full: AnalysisResult): AnalysisResult {
     decennaleVerification: full.decennaleVerification,
     input: {
       ...full.input,
-      quoteText: "[Contenu masqué — débloquez le rapport]",
+      quoteText: buildQuotePreviewText(full.input.quoteText),
     },
   };
+}
+
+/** Aperçu lisible : l'utilisateur voit de quel devis il s'agit */
+function buildQuotePreviewText(text: string): string {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return "[Devis non lisible — relancez l'analyse]";
+  const head = lines.slice(0, 10).join("\n");
+  if (lines.length > 10 || text.length > 900) {
+    return `${head}\n\n[… fin du devis : rapport complet pour le texte intégral]`;
+  }
+  return head;
 }
 
 function buildTeaserSummary(

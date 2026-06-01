@@ -16,6 +16,8 @@ import { RegistryVerificationCards } from "@/components/registry-verification-ca
 import { formatEuro, formatDate } from "@/lib/utils";
 import { isMeaningfulSavings } from "@/lib/analyzer";
 import { NegotiationLetterPanel } from "@/components/negotiation-letter-panel";
+import { QuoteRecapCard } from "@/components/quote-recap-card";
+import { PriceComparisonSection } from "@/components/price-comparison-section";
 import { loadReportFromSession } from "@/lib/report-session";
 import { countAlerts, computeLegalPercent } from "@/lib/free-tier";
 
@@ -164,6 +166,8 @@ export function ResultatsClient({
         )}
       </div>
 
+      <QuoteRecapCard report={report} isPaid={isPaid} />
+
       <div className="mt-10 flex flex-col items-center gap-8 rounded-3xl border border-slate-100 bg-white p-8 shadow-lg sm:flex-row sm:justify-around">
         <ScoreGauge score={report.score} label={report.scoreLabel} />
         <div className="max-w-md text-center sm:text-left">
@@ -297,37 +301,7 @@ export function ResultatsClient({
         </ul>
       </section>
 
-      {isPaid && report.priceComparisons.length > 0 && (
-        <section className="mt-12 print:break-inside-avoid">
-          <h2 className="text-xl font-bold text-slate-900">Comparaison des prix</h2>
-          <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-100">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Poste</th>
-                  <th className="px-4 py-3 font-semibold">Votre prix</th>
-                  <th className="px-4 py-3 font-semibold">Marché</th>
-                  <th className="px-4 py-3 font-semibold">Écart</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.priceComparisons.map((c) => (
-                  <tr key={c.item} className="border-t border-slate-100">
-                    <td className="px-4 py-3">{c.item}</td>
-                    <td className="px-4 py-3">{formatEuro(c.yourPrice)}</td>
-                    <td className="px-4 py-3">{formatEuro(c.marketAverage)}</td>
-                    <td className={`px-4 py-3 font-semibold ${
-                      c.status === "ok" ? "text-emerald-600" : "text-red-600"
-                    }`}>
-                      {c.deviationPercent > 0 ? "+" : ""}{c.deviationPercent}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+      {isPaid && <PriceComparisonSection comparisons={report.priceComparisons} />}
 
       {!isPaid && (
         <section className="no-print mt-12 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">

@@ -57,12 +57,22 @@ export interface Alert {
   savingsEstimate?: number;
 }
 
+export type PriceComparisonScope = "per_m2" | "line_total" | "quote_total";
+
 export interface PriceComparison {
   item: string;
   yourPrice: number;
   marketAverage: number;
   deviationPercent: number;
   status: "ok" | "high" | "very_high";
+  /** Comment lire les montants (transparence) */
+  scope: PriceComparisonScope;
+  unit?: string;
+  quantity?: number;
+  yourUnitPrice?: number;
+  marketUnitPrice?: number;
+  /** Phrase lisible : devis vs référence */
+  explanation?: string;
 }
 
 export interface AnalysisResult {

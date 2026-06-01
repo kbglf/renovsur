@@ -12,8 +12,10 @@ import {
   buildNegotiationLetter,
   generateNegotiationAdvice,
 } from "./negotiation-letter";
+import { formatEuro } from "../utils";
 import {
   BENCHMARKS,
+  REGION_LABELS,
   detectWorkType,
   getRegionalPrice,
 } from "./price-benchmarks";
@@ -76,6 +78,18 @@ function extractSiret(text: string): string | undefined {
   return match?.[1].replace(/\s/g, "");
 }
 
+function extractArtisanName(text: string): string | undefined {
+  const line = text.split("\n").find((l) => {
+    const t = l.trim();
+    return (
+      t.length >= 5 &&
+      t.length <= 100 &&
+      !/^devis|total|tva|acompte|validit/i.test(t)
+    );
+  });
+  return line?.trim();
+}
+
 function extractDepositPercent(text: string): number | undefined {
   const match = text.match(/acompte.{0,40}(\d+)\s*%/i);
   if (!match) return undefined;
@@ -132,58 +146,76 @@ export function computeTotalSavingsEstimate(
 function buildPriceComparisons(input: QuoteInput): PriceComparison[] {
   const workType = input.workType || detectWorkType(input.quoteText);
   const benchmark = BENCHMARKS[workType];
-  const marketPrice = getRegionalPrice(benchmark.basePrice, input.region);
+  const regionLabel = REGION_LABELS[input.region];
+  const marketUnit = getRegionalPrice(benchmark.basePrice, input.region);
   const comparisons: PriceComparison[] = [];
 
-  if (input.surfaceM2 && input.surfaceM2 > 0) {
-    const pricePerM2 = input.totalAmount / input.surfaceM2;
-    const deviation = ((pricePerM2 - marketPrice) / marketPrice) * 100;
+  for (const line of input.lines.slice(0, 8)) {
+    if (!line.total || line.total <= 0) continue;
+    const qty = line.quantity ?? extractSurfaceM2(line.description);
+    const lineType = detectWorkType(line.description);
+    const lineBench = BENCHMARKS[lineType];
+
+    if (lineBench.unit !== "m²" || !qty || qty <= 0) continue;
+
+    const marketUnitLine = getRegionalPrice(lineBench.basePrice, input.region);
+    const marketTotal = Math.round(marketUnitLine * qty);
+    const yourPerM2 = Math.round(line.total / qty);
+    const deviation = ((line.total - marketTotal) / marketTotal) * 100;
+
+    if (Math.abs(deviation) <= 15) continue;
+
     comparisons.push({
-      item: `${benchmark.label} (${input.surfaceM2} m²)`,
-      yourPrice: Math.round(pricePerM2),
-      marketAverage: marketPrice,
+      item: line.description.slice(0, 80),
+      yourPrice: line.total,
+      marketAverage: marketTotal,
       deviationPercent: Math.round(deviation),
       status:
         deviation > 40 ? "very_high" : deviation > 20 ? "high" : "ok",
+      scope: "line_total",
+      unit: "m²",
+      quantity: qty,
+      yourUnitPrice: yourPerM2,
+      marketUnitPrice: marketUnitLine,
+      explanation:
+        `Sur votre devis : ${formatEuro(line.total)} pour ${qty} m², soit environ ${yourPerM2} €/m². ` +
+        `Repère indicatif (${regionLabel}) : ~${lineBench.basePrice} €/m² national → ${marketUnitLine} €/m² × ${qty} m² ≈ ${formatEuro(marketTotal)}. ` +
+        `Écart sur ce poste : ${deviation > 0 ? "+" : ""}${Math.round(deviation)} %.`,
     });
   }
 
-  for (const line of input.lines.slice(0, 6)) {
-    if (!line.total || line.total <= 0) continue;
-    const estimatedMarket = estimateLineMarketTotal(line, input.region);
-    if (estimatedMarket === null || estimatedMarket <= 0) continue;
+  const surface = input.surfaceM2 ?? extractSurfaceM2(input.quoteText);
+  if (
+    comparisons.length === 0 &&
+    surface &&
+    surface > 0 &&
+    input.totalAmount > 0 &&
+    benchmark.unit === "m²"
+  ) {
+    const yourPerM2 = Math.round(input.totalAmount / surface);
+    const marketTotal = Math.round(marketUnit * surface);
+    const deviation = ((input.totalAmount - marketTotal) / marketTotal) * 100;
 
-    const deviation =
-      ((line.total - estimatedMarket) / estimatedMarket) * 100;
     if (Math.abs(deviation) > 15) {
       comparisons.push({
-        item: line.description.slice(0, 60),
-        yourPrice: line.total,
-        marketAverage: estimatedMarket,
-        deviationPercent: Math.round(deviation),
+        item: `${benchmark.label} (ensemble du devis)`,
+        yourPrice: yourPerM2,
+        marketAverage: marketUnit,
+        deviationPercent: Math.round(
+          ((yourPerM2 - marketUnit) / marketUnit) * 100,
+        ),
         status:
           deviation > 40 ? "very_high" : deviation > 20 ? "high" : "ok",
+        scope: "per_m2",
+        unit: "m²",
+        quantity: surface,
+        yourUnitPrice: yourPerM2,
+        marketUnitPrice: marketUnit,
+        explanation:
+          `Devis global : ${formatEuro(input.totalAmount)} pour ${surface} m² → environ ${yourPerM2} €/m². ` +
+          `Repère peinture (${regionLabel}) : base ~${benchmark.basePrice} €/m² → ${marketUnit} €/m² (soit ~${formatEuro(marketTotal)} pour ${surface} m²).`,
       });
     }
-  }
-
-  if (comparisons.length === 0 && input.totalAmount > 0) {
-    const surface =
-      input.surfaceM2 ?? extractSurfaceM2(input.quoteText) ?? 20;
-    const estimatedMarket = getRegionalPrice(
-      benchmark.basePrice * surface,
-      input.region,
-    );
-    const deviation =
-      ((input.totalAmount - estimatedMarket) / estimatedMarket) * 100;
-    comparisons.push({
-      item: `Estimation globale — ${benchmark.label}`,
-      yourPrice: input.totalAmount,
-      marketAverage: estimatedMarket,
-      deviationPercent: Math.round(deviation),
-      status:
-        deviation > 40 ? "very_high" : deviation > 20 ? "high" : "ok",
-    });
   }
 
   return comparisons;
@@ -199,7 +231,9 @@ function buildPriceAlerts(comparisons: PriceComparison[]): Alert[] {
         c.status === "very_high"
           ? `Prix très élevé : ${c.item}`
           : `Prix au-dessus du marché : ${c.item}`,
-      description: `Vous payez ${c.yourPrice.toLocaleString("fr-FR")} € vs ${c.marketAverage.toLocaleString("fr-FR")} € en moyenne (+${c.deviationPercent}%).`,
+      description:
+        c.explanation ??
+        `Écart estimé de ${c.deviationPercent > 0 ? "+" : ""}${c.deviationPercent} % sur ce poste.`,
       recommendation:
         "Demandez une justification écrite ou un devis concurrent pour négocier à la baisse.",
       savingsEstimate: Math.min(
@@ -285,7 +319,9 @@ export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
   const surfaceM2 = raw.surfaceM2 ?? extractSurfaceM2(quoteText);
 
   const input: QuoteInput = {
-    artisanName: raw.artisanName,
+    artisanName:
+      raw.artisanName?.trim() ||
+      extractArtisanName(quoteText),
     siret,
     quoteText,
     lines,

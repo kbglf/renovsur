@@ -9,7 +9,32 @@ const REGION_MULTIPLIERS: Record<Region, number> = {
   autre: 1.0,
 };
 
-/** Prix moyens au m² ou à l'unité en France (2025-2026, sources INSEE / FFB / artisans agrégés) */
+export const BENCHMARK_DISCLAIMER =
+  "Repères indicatifs (ordres de grandeur 2025–2026, bases FFB / retours artisans, ajustement régional). " +
+  "Un devis réel dépend des finitions, accessibilité du chantier et du matériel — utilisez ces chiffres pour questionner l'artisan, pas comme prix officiel.";
+
+export const REGION_LABELS: Record<Region, string> = {
+  "ile-de-france": "Île-de-France (+25 %)",
+  paca: "PACA (+15 %)",
+  "auvergne-rhone-alpes": "Auvergne-Rhône-Alpes (+5 %)",
+  occitanie: "Occitanie",
+  "nouvelle-aquitaine": "Nouvelle-Aquitaine (−2 %)",
+  autre: "France (référence nationale)",
+};
+
+export const WORK_TYPE_LABELS: Record<WorkType, string> = {
+  peinture: "Peinture",
+  carrelage: "Carrelage",
+  plomberie: "Plomberie",
+  electricite: "Électricité",
+  isolation: "Isolation",
+  menuiserie: "Menuiserie",
+  toiture: "Toiture",
+  maconnerie: "Maçonnerie",
+  autre: "Travaux divers",
+};
+
+/** Prix moyens au m² ou forfait en France — repères indicatifs, pas barème contractuel */
 export const BENCHMARKS: Record<
   WorkType,
   { label: string; unit: string; basePrice: number; keywords: string[] }
