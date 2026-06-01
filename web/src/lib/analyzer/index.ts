@@ -167,6 +167,20 @@ function computeGlobalScore(
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+export function refreshReportScore(report: AnalysisResult): void {
+  const legalChecksWithWeight = report.legalChecks.map((c) => ({
+    ...c,
+    weight: 10,
+  }));
+  const legalScore = computeLegalScore(legalChecksWithWeight);
+  report.score = computeGlobalScore(
+    legalScore,
+    report.alerts,
+    report.priceComparisons,
+  );
+  report.scoreLabel = scoreLabel(report.score);
+}
+
 function scoreLabel(score: number): string {
   if (score >= 80) return "Devis fiable";
   if (score >= 60) return "Points de vigilance";

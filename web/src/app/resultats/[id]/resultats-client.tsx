@@ -12,6 +12,7 @@ import { FreePlanBanner } from "@/components/free-plan-banner";
 import { CopyReportLink } from "@/components/copy-report-link";
 import { Disclaimer } from "@/components/disclaimer";
 import { PaymentNotice } from "@/components/payment-notice";
+import { SiretVerificationCard } from "@/components/siret-verification-card";
 import { formatEuro, formatDate } from "@/lib/utils";
 import { loadReportFromSession } from "@/lib/report-session";
 import { countAlerts, computeLegalPercent } from "@/lib/free-tier";
@@ -197,6 +198,12 @@ export function ResultatsClient({
       <div className="mt-6">
         <Disclaimer />
       </div>
+
+      {report.siretVerification && (
+        <div className="mt-8">
+          <SiretVerificationCard verification={report.siretVerification} compact={!isPaid} />
+        </div>
+      )}
 
       {!isPaid && (
         <div className="no-print mt-8">

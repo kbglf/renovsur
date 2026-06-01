@@ -18,7 +18,7 @@ export function runLegalChecks(input: QuoteInput): LegalCheck[] {
     label: "Numéro SIRET de l'artisan",
     passed: hasSiret,
     detail: hasSiret
-      ? "SIRET identifié — vous pouvez vérifier l'entreprise sur societe.com ou Infogreffe."
+      ? "SIRET détecté — vérification au registre national en cours lors de l'analyse."
       : "Obligatoire depuis 2022. Sans SIRET, le devis n'est pas valable légalement.",
     weight: 15,
   });

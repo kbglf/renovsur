@@ -67,12 +67,15 @@ export function toFreePreview(full: AnalysisResult): AnalysisResult {
     legalChecks: full.legalChecks.map((c) => ({
       label: c.passed ? "Point conforme" : "Point à vérifier",
       passed: c.passed,
-      detail: "Détail disponible dans le rapport complet.",
+      detail: c.label.includes("SIRET")
+        ? c.detail
+        : "Détail disponible dans le rapport complet.",
     })),
     negotiationPoints: [],
     totalSavingsEstimate: 0,
     isPaid: false,
     plan: "free",
+    siretVerification: full.siretVerification,
     input: {
       ...full.input,
       quoteText: "[Contenu masqué — débloquez le rapport]",

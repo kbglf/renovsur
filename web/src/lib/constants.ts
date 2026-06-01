@@ -11,7 +11,7 @@ export const QUOTA_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 
 export const DEVICE_COOKIE = "rs_device";
 
-export const SAMPLE_QUOTE = `Entreprise Dupont Rénovation
+export const SAMPLE_QUOTE = `Entreprise Dupont Rénovation (exemple fictif)
 SIRET : 123 456 789 00012
 Adresse chantier : 12 rue des Lilas, 75011 Paris
 Tél : 06 12 34 56 78

@@ -29,7 +29,7 @@ export const FAQ_ITEMS = [
   },
   {
     q: "Que faire si mon score est rouge ?",
-    a: "Ne signez pas immédiatement. Demandez un second devis, vérifiez le SIRET sur societe.com, et négociez les points signalés avec le Rapport Négociation (39 €).",
+    a: "Ne signez pas immédiatement. Demandez un second devis : le SIRET est vérifié automatiquement au registre national, et le rapport détaille les autres points à négocier (39 €).",
   },
   {
     q: "Comment retrouver mon rapport après paiement ?",

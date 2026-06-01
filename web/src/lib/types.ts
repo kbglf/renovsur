@@ -1,3 +1,5 @@
+import type { SiretVerification } from "./siret-verify";
+
 export type WorkType =
   | "peinture"
   | "carrelage"
@@ -75,6 +77,7 @@ export interface AnalysisResult {
   input: QuoteInput;
   email?: string;
   paidWithCredit?: boolean;
+  siretVerification?: SiretVerification;
 }
 
 export type PlanId = "complete" | "negotiation" | "compare3";
