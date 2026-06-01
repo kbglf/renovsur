@@ -18,16 +18,16 @@ Tél : 06 12 34 56 78
 
 DEVIS N° 2026-042 — Validité : 2 mois
 
-Peinture murs et plafonds salon — 35 m² — 980 €
+Peinture murs et plafonds salon — 35 m² — 1 420 €
 Enduit et préparation supports — 420 €
 Fourniture peinture qualité moyenne — 280 €
 Main d'œuvre peinture — 650 €
 
 Protection sols et meubles — 120 €
 
-Total HT : 1 862 €
-TVA 10% : 186 €
-Total TTC : 2 048 €
+Total HT : 2 302 €
+TVA 10% : 230 €
+Total TTC : 2 532 €
 
 Acompte à la commande : 45%
 Solde à réception des travaux

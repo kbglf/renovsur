@@ -123,11 +123,7 @@ export function detectScamPatterns(input: QuoteInput): Alert[] {
           ? "La DGCCRF signale régulièrement des artisans qui encaissent un acompte élevé puis disparaissent."
           : `Un acompte de ${input.depositPercent}% dépasse la limite recommandée de 30%.`,
       recommendation:
-        "Proposez 30% maximum à la commande, puis un échelonnement à l'avancement des travaux.",
-      savingsEstimate: Math.min(
-        Math.round(input.totalAmount * ((input.depositPercent - 30) / 100)),
-        input.totalAmount,
-      ),
+        "Proposez 30 % maximum à la commande, puis le solde par étapes (mi-chantier, réception). Baisser l'acompte ne réduit pas le prix total : vous payez le reste plus tard.",
     });
   }
 

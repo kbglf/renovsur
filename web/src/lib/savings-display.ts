@@ -10,8 +10,26 @@ export interface SavingsBreakdownItem {
 export interface SavingsDisplay {
   total: number;
   items: SavingsBreakdownItem[];
-  /** Afficher le montant en vert sous le score (devis plutôt fiable) */
   showProminent: boolean;
+}
+
+export interface PaymentAdvice {
+  depositPercent: number;
+  totalAmount: number;
+  upfrontAtCurrent: number;
+  upfrontAtRecommended: number;
+}
+
+export function buildPaymentAdvice(input: QuoteInput): PaymentAdvice | null {
+  const pct = input.depositPercent;
+  if (!pct || pct <= 30 || input.totalAmount <= 0) return null;
+
+  return {
+    depositPercent: pct,
+    totalAmount: input.totalAmount,
+    upfrontAtCurrent: Math.round(input.totalAmount * (pct / 100)),
+    upfrontAtRecommended: Math.round(input.totalAmount * 0.3),
+  };
 }
 
 export function buildSavingsDisplay(
@@ -22,35 +40,23 @@ export function buildSavingsDisplay(
   const items: SavingsBreakdownItem[] = [];
 
   for (const alert of alerts) {
+    if (!alert.id.startsWith("price-")) continue;
     if (!alert.savingsEstimate || alert.savingsEstimate <= 0) continue;
 
-    if (alert.id === "scam-deposit") {
-      const pct = input.depositPercent;
-      items.push({
-        label: "Acompte trop élevé",
-        amount: alert.savingsEstimate,
-        detail: pct
-          ? `Votre devis demande ${pct} % à la commande. En le ramenant à 30 % (recommandation usuelle), vous évitez de bloquer cet argent trop tôt — ce n'est pas une facture en plus.`
-          : "Réduire l'acompte à la commande (30 % maximum conseillé).",
-      });
-    } else if (alert.id.startsWith("price-")) {
-      items.push({
-        label: "Prix au-dessus du repère",
-        amount: alert.savingsEstimate,
-        detail:
-          "Écart par rapport à nos repères indicatifs — à faire valider ou négocier avec l'artisan.",
-      });
-    }
+    items.push({
+      label: "Prix au-dessus du repère",
+      amount: alert.savingsEstimate,
+      detail:
+        "Écart par rapport à nos repères indicatifs au m² — en négociant le tarif ou les postes, vous pourriez payer moins sur le même chantier.",
+    });
   }
 
   const total = computeTotalSavingsEstimate(alerts, input.totalAmount);
-  if (total <= 0 || !isMeaningfulSavings(total, input.totalAmount)) {
-    return items.length > 0 ? { total, items, showProminent: false } : null;
-  }
+  if (total <= 0) return null;
 
   return {
     total,
     items,
-    showProminent: score >= 40,
+    showProminent: score >= 40 && isMeaningfulSavings(total, input.totalAmount),
   };
 }

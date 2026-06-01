@@ -81,13 +81,15 @@ function estimateLineMarketTotal(
   return Math.round(unitPrice * qty);
 }
 
-/** Somme des économies, plafonnée au montant TTC du devis */
+/** Économies = uniquement négociation sur le prix (pas l'acompte, qui déplace les paiements) */
 export function computeTotalSavingsEstimate(
   alerts: Alert[],
   totalAmount: number,
 ): number {
   if (totalAmount <= 0) return 0;
-  const raw = alerts.reduce((sum, a) => sum + (a.savingsEstimate ?? 0), 0);
+  const raw = alerts
+    .filter((a) => a.id.startsWith("price-"))
+    .reduce((sum, a) => sum + (a.savingsEstimate ?? 0), 0);
   return Math.min(Math.round(raw), totalAmount);
 }
 

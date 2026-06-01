@@ -10,6 +10,7 @@ export function getExampleReport(): AnalysisResult {
     quoteText: SAMPLE_QUOTE,
     region: "ile-de-france",
     surfaceM2: 35,
+    totalAmount: 2532,
     depositPercent: 45,
     hasDecennale: true,
     validityDays: 60,

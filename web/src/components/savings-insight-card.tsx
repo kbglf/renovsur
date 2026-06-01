@@ -18,29 +18,18 @@ export function SavingsInsightCard({ savings }: { savings: SavingsDisplay }) {
           className={`h-5 w-5 shrink-0 ${cautious ? "text-blue-700" : "text-emerald-700"}`}
         />
         <div className="min-w-0 flex-1 text-sm">
-          {cautious ? (
-            <>
-              <p className="font-semibold text-blue-950">
-                Ce montant n&apos;est pas à payer en plus
-              </p>
-              <p className="mt-2 leading-relaxed text-blue-900">
-                Environ <strong>{formatEuro(savings.total)}</strong> correspond à ce que vous
-                pourriez <strong>économiser</strong> en négociant (surtout l&apos;acompte),
-                une fois les risques bloquants réglés. Ce n&apos;est pas un supplément à régler
-                plus tard.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="font-semibold text-emerald-950">
-                Économie possible (estimation)
-              </p>
-              <p className="mt-2 leading-relaxed text-emerald-900">
-                Jusqu&apos;à <strong>{formatEuro(savings.total)}</strong> en négociant les
-                points signalés dans ce rapport — montant indicatif, pas garanti.
-              </p>
-            </>
-          )}
+          <p className={`font-semibold ${cautious ? "text-blue-950" : "text-emerald-950"}`}>
+            {cautious
+              ? "Économie possible sur le prix (estimation)"
+              : "Économie possible sur le prix du devis"}
+          </p>
+          <p
+            className={`mt-2 leading-relaxed ${cautious ? "text-blue-900" : "text-emerald-900"}`}
+          >
+            Jusqu&apos;à <strong>{formatEuro(savings.total)}</strong> en négociant des postes
+            au-dessus de nos repères (même surface, même prestation). Montant indicatif — pas
+            garanti, et sans compter l&apos;acompte.
+          </p>
 
           {savings.items.length > 0 && (
             <ul className="mt-3 space-y-2">

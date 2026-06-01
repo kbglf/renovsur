@@ -15,7 +15,8 @@ import { PaymentNotice } from "@/components/payment-notice";
 import { RegistryVerificationCards } from "@/components/registry-verification-card";
 import { formatEuro, formatDate } from "@/lib/utils";
 import { NegotiationLetterPanel } from "@/components/negotiation-letter-panel";
-import { buildSavingsDisplay } from "@/lib/savings-display";
+import { buildPaymentAdvice, buildSavingsDisplay } from "@/lib/savings-display";
+import { PaymentAdviceCard } from "@/components/payment-advice-card";
 import { SavingsInsightCard } from "@/components/savings-insight-card";
 import { QuoteRecapCard } from "@/components/quote-recap-card";
 import { PriceComparisonSection } from "@/components/price-comparison-section";
@@ -139,6 +140,7 @@ export function ResultatsClient({
     isPaid && report.input.totalAmount > 0
       ? buildSavingsDisplay(report.alerts, report.input, report.score)
       : null;
+  const paymentAdvice = buildPaymentAdvice(report.input);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
@@ -201,6 +203,7 @@ export function ResultatsClient({
         </div>
       </div>
 
+      {paymentAdvice && <PaymentAdviceCard advice={paymentAdvice} />}
       {savingsDisplay && <SavingsInsightCard savings={savingsDisplay} />}
 
       {!isPaid && (
