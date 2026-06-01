@@ -20,6 +20,10 @@ import {
   getRegionalPrice,
 } from "./price-benchmarks";
 import { extractTotalFromText, parseLinesFromText } from "../quote-parse";
+import {
+  computeSavingsFromComparisons,
+  savingsFromComparison,
+} from "../price-savings";
 
 function extractSiret(text: string): string | undefined {
   const match = text.match(/\b(\d{3}\s?\d{3}\s?\d{3}\s?\d{5})\b/);
@@ -45,11 +49,7 @@ function extractDepositPercent(text: string): number | undefined {
   return n > 0 && n <= 100 ? n : undefined;
 }
 
-/** Afficher une marge € seulement si elle est significative */
-export function isMeaningfulSavings(savings: number, totalAmount: number): boolean {
-  if (savings <= 0 || totalAmount <= 0) return false;
-  return savings >= Math.max(100, Math.round(totalAmount * 0.05));
-}
+export { isMeaningfulSavings } from "../price-savings";
 
 /** Surface en m² dans une ligne ou le devis (ex. « 35 m² ») */
 function extractSurfaceM2(text: string): number | undefined {
@@ -81,7 +81,7 @@ function estimateLineMarketTotal(
   return Math.round(unitPrice * qty);
 }
 
-/** Économies = uniquement négociation sur le prix (pas l'acompte, qui déplace les paiements) */
+/** @deprecated Préférer computeSavingsFromComparisons */
 export function computeTotalSavingsEstimate(
   alerts: Alert[],
   totalAmount: number,
@@ -94,10 +94,7 @@ export function computeTotalSavingsEstimate(
 }
 
 function buildPriceComparisons(input: QuoteInput): PriceComparison[] {
-  const workType = input.workType || detectWorkType(input.quoteText);
-  const benchmark = BENCHMARKS[workType];
   const regionLabel = REGION_LABELS[input.region];
-  const marketUnit = getRegionalPrice(benchmark.basePrice, input.region);
   const comparisons: PriceComparison[] = [];
 
   for (const line of input.lines.slice(0, 8)) {
@@ -134,40 +131,6 @@ function buildPriceComparisons(input: QuoteInput): PriceComparison[] {
     });
   }
 
-  const surface = input.surfaceM2 ?? extractSurfaceM2(input.quoteText);
-  if (
-    comparisons.length === 0 &&
-    surface &&
-    surface > 0 &&
-    input.totalAmount > 0 &&
-    benchmark.unit === "m²"
-  ) {
-    const yourPerM2 = Math.round(input.totalAmount / surface);
-    const marketTotal = Math.round(marketUnit * surface);
-    const deviation = ((input.totalAmount - marketTotal) / marketTotal) * 100;
-
-    if (Math.abs(deviation) > 15) {
-      comparisons.push({
-        item: `${benchmark.label} (ensemble du devis)`,
-        yourPrice: yourPerM2,
-        marketAverage: marketUnit,
-        deviationPercent: Math.round(
-          ((yourPerM2 - marketUnit) / marketUnit) * 100,
-        ),
-        status:
-          deviation > 40 ? "very_high" : deviation > 20 ? "high" : "ok",
-        scope: "per_m2",
-        unit: "m²",
-        quantity: surface,
-        yourUnitPrice: yourPerM2,
-        marketUnitPrice: marketUnit,
-        explanation:
-          `Devis global : ${formatEuro(input.totalAmount)} pour ${surface} m² → environ ${yourPerM2} €/m². ` +
-          `Repère peinture (${regionLabel}) : base ~${benchmark.basePrice} €/m² → ${marketUnit} €/m² (soit ~${formatEuro(marketTotal)} pour ${surface} m²).`,
-      });
-    }
-  }
-
   return comparisons;
 }
 
@@ -186,10 +149,7 @@ function buildPriceAlerts(comparisons: PriceComparison[]): Alert[] {
         `Écart estimé de ${c.deviationPercent > 0 ? "+" : ""}${c.deviationPercent} % sur ce poste.`,
       recommendation:
         "Demandez une justification écrite ou un devis concurrent pour négocier à la baisse.",
-      savingsEstimate: Math.min(
-        Math.max(0, c.yourPrice - c.marketAverage),
-        c.yourPrice,
-      ),
+      savingsEstimate: savingsFromComparison(c),
     }));
 }
 
@@ -230,31 +190,36 @@ function scoreLabel(score: number): string {
   return "Alerte rouge — ne signez pas";
 }
 
-function buildSummary(score: number, alerts: Alert[], total: number): string {
+function buildSummary(
+  score: number,
+  alerts: Alert[],
+  total: number,
+  priceSavings: number,
+): string {
   const critical = alerts.filter((a) => a.severity === "critical").length;
   const warning = alerts.filter((a) => a.severity === "warning").length;
-  const savings = computeTotalSavingsEstimate(alerts, total);
   const amount = total.toLocaleString("fr-FR");
+  const savingsLine =
+    priceSavings > 0
+      ? ` Marge de négociation sur les postes comparés : jusqu'à ${priceSavings.toLocaleString("fr-FR")} € (voir détail plus bas).`
+      : "";
 
   if (score >= 80) {
-    return `Ce devis de ${amount} € présente un profil globalement sain. Quelques vérifications restent recommandées avant signature.`;
+    return `Ce devis de ${amount} € présente un profil globalement sain. Quelques vérifications restent recommandées avant signature.${savingsLine}`;
   }
 
   if (score < 40) {
     return (
       `Devis de ${amount} € : ${critical} point(s) critique(s) et ${warning} point(s) de vigilance. ` +
-      `Priorité : corriger les risques (entreprise, conformité, paiement) avant de signer ou de négocier le prix.`
+      `Priorité : corriger les risques (entreprise, conformité, paiement) avant de signer.${savingsLine}`
     );
   }
 
   if (critical > 0 || warning > 0) {
-    const savingsLine = isMeaningfulSavings(savings, total)
-      ? ` Économie possible (estimation) : jusqu'à ${savings.toLocaleString("fr-FR")} € si vous négociez les points signalés.`
-      : "";
     return `Ce devis de ${amount} € comporte ${critical} alerte(s) critique(s) et ${warning} point(s) de vigilance.${savingsLine}`;
   }
 
-  return `Ce devis de ${amount} € mérite une relecture attentive avant signature.`;
+  return `Ce devis de ${amount} € mérite une relecture attentive avant signature.${savingsLine}`;
 }
 
 export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
@@ -295,8 +260,8 @@ export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
 
   const score = computeGlobalScore(legalScore, allAlerts, priceComparisons);
 
-  const totalSavingsEstimate = computeTotalSavingsEstimate(
-    allAlerts,
+  const totalSavingsEstimate = computeSavingsFromComparisons(
+    priceComparisons,
     totalAmount,
   );
 
@@ -331,7 +296,7 @@ export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
     createdAt: draftForLetter.createdAt,
     score,
     scoreLabel: scoreLabel(score),
-    summary: buildSummary(score, allAlerts, totalAmount),
+    summary: buildSummary(score, allAlerts, totalAmount, totalSavingsEstimate),
     alerts: allAlerts,
     priceComparisons,
     legalChecks: legalChecksMapped,

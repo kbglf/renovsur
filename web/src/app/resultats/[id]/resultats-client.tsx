@@ -15,8 +15,7 @@ import { PaymentNotice } from "@/components/payment-notice";
 import { RegistryVerificationCards } from "@/components/registry-verification-card";
 import { formatEuro, formatDate } from "@/lib/utils";
 import { NegotiationLetterPanel } from "@/components/negotiation-letter-panel";
-import { buildPaymentAdvice, buildSavingsDisplay } from "@/lib/savings-display";
-import { PaymentAdviceCard } from "@/components/payment-advice-card";
+import { buildSavingsDisplay } from "@/lib/savings-display";
 import { SavingsInsightCard } from "@/components/savings-insight-card";
 import { QuoteRecapCard } from "@/components/quote-recap-card";
 import { PriceComparisonSection } from "@/components/price-comparison-section";
@@ -138,9 +137,12 @@ export function ResultatsClient({
   const isPaid = report.isPaid;
   const savingsDisplay =
     isPaid && report.input.totalAmount > 0
-      ? buildSavingsDisplay(report.alerts, report.input, report.score)
+      ? buildSavingsDisplay(
+          report.priceComparisons,
+          report.input,
+          report.score,
+        )
       : null;
-  const paymentAdvice = buildPaymentAdvice(report.input);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
@@ -195,16 +197,14 @@ export function ResultatsClient({
               Détail des économies possibles : dans le rapport complet (19 €).
             </p>
           )}
-          {savingsDisplay && savingsDisplay.showProminent && (
+          {isPaid && savingsDisplay && savingsDisplay.total > 0 && (
             <p className="mt-2 text-sm font-semibold text-emerald-700">
-              Économie possible (estimation) : jusqu&apos;à {formatEuro(savingsDisplay.total)}
+              Marge de négociation (postes comparés) : jusqu&apos;à{" "}
+              {formatEuro(savingsDisplay.total)}
             </p>
           )}
         </div>
       </div>
-
-      {paymentAdvice && <PaymentAdviceCard advice={paymentAdvice} />}
-      {savingsDisplay && <SavingsInsightCard savings={savingsDisplay} />}
 
       {!isPaid && (
         <div className="no-print mt-6 grid gap-3 sm:grid-cols-3">
@@ -308,6 +308,8 @@ export function ResultatsClient({
       </section>
 
       {isPaid && <PriceComparisonSection comparisons={report.priceComparisons} />}
+
+      {savingsDisplay && <SavingsInsightCard savings={savingsDisplay} />}
 
       {!isPaid && (
         <section className="no-print mt-12 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">

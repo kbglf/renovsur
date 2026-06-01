@@ -13,13 +13,18 @@ export function PaymentAdviceCard({ advice }: { advice: PaymentAdvice }) {
           <p className="font-semibold">Acompte à la commande : {advice.depositPercent} %</p>
           <p className="mt-2 leading-relaxed">
             Aujourd&apos;hui le devis demande environ{" "}
-            <strong>{formatEuro(advice.upfrontAtCurrent)}</strong> d&apos;acompte (
+            <strong>{formatEuro(advice.upfrontAtCurrent)}</strong>
+            {" "}
+            d&apos;acompte (
             {advice.depositPercent} % de {formatEuro(advice.totalAmount)} TTC). Avec 30 %,
             ce serait <strong>{formatEuro(advice.upfrontAtRecommended)}</strong> au départ.
           </p>
           <p className="mt-2 leading-relaxed">
             Ce n&apos;est <strong>pas une économie</strong> sur le chantier : vous payez le solde
-            plus tard ({formatEuro(diff)} reportés). L&apos;intérêt est de ne pas bloquer trop
+            plus tard (
+            {formatEuro(diff)}
+            {" "}
+            reportés). L&apos;intérêt est de ne pas bloquer trop
             d&apos;argent avant le début des travaux.
           </p>
         </div>

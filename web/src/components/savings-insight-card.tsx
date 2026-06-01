@@ -26,9 +26,11 @@ export function SavingsInsightCard({ savings }: { savings: SavingsDisplay }) {
           <p
             className={`mt-2 leading-relaxed ${cautious ? "text-blue-900" : "text-emerald-900"}`}
           >
-            Jusqu&apos;à <strong>{formatEuro(savings.total)}</strong> en négociant des postes
-            au-dessus de nos repères (même surface, même prestation). Montant indicatif — pas
-            garanti, et sans compter l&apos;acompte.
+            Jusqu&apos;à{" "}
+            <strong>{formatEuro(savings.total)}</strong>
+            {" "}
+            sur les postes comparés ci-dessus (même surface, même prestation). Même chiffre
+            que dans le résumé. Montant indicatif — pas garanti.
           </p>
 
           {savings.items.length > 0 && (

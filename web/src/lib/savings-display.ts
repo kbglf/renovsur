@@ -1,5 +1,11 @@
-import type { Alert, QuoteInput } from "./types";
-import { computeTotalSavingsEstimate, isMeaningfulSavings } from "./analyzer";
+import type { PriceComparison, QuoteInput } from "./types";
+import {
+  computeSavingsFromComparisons,
+  isMeaningfulSavings,
+  savingsFromComparison,
+} from "./price-savings";
+
+export { isMeaningfulSavings } from "./price-savings";
 
 export interface SavingsBreakdownItem {
   label: string;
@@ -32,26 +38,22 @@ export function buildPaymentAdvice(input: QuoteInput): PaymentAdvice | null {
   };
 }
 
+/** Aligné sur la section « Comparaison des prix » (même chiffres) */
 export function buildSavingsDisplay(
-  alerts: Alert[],
+  comparisons: PriceComparison[],
   input: QuoteInput,
   score: number,
 ): SavingsDisplay | null {
-  const items: SavingsBreakdownItem[] = [];
+  const items = comparisons
+    .filter((c) => c.status !== "ok")
+    .map((c) => ({
+      label: c.item.length > 55 ? `${c.item.slice(0, 55)}…` : c.item,
+      amount: savingsFromComparison(c),
+      detail: c.explanation ?? "",
+    }))
+    .filter((i) => i.amount > 0);
 
-  for (const alert of alerts) {
-    if (!alert.id.startsWith("price-")) continue;
-    if (!alert.savingsEstimate || alert.savingsEstimate <= 0) continue;
-
-    items.push({
-      label: "Prix au-dessus du repère",
-      amount: alert.savingsEstimate,
-      detail:
-        "Écart par rapport à nos repères indicatifs au m² — en négociant le tarif ou les postes, vous pourriez payer moins sur le même chantier.",
-    });
-  }
-
-  const total = computeTotalSavingsEstimate(alerts, input.totalAmount);
+  const total = computeSavingsFromComparisons(comparisons, input.totalAmount);
   if (total <= 0) return null;
 
   return {

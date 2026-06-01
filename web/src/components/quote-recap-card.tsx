@@ -76,9 +76,15 @@ export function QuoteRecapCard({
               </div>
             )}
             {input.depositPercent !== undefined && (
-              <div>
+              <div className="sm:col-span-2">
                 <dt className="font-medium text-slate-500">Acompte indiqué</dt>
                 <dd className="text-slate-900">{input.depositPercent} %</dd>
+                {input.depositPercent > 30 && input.totalAmount > 0 && (
+                  <p className="mt-1 text-xs leading-relaxed text-amber-800">
+                    Au-delà de 30 %, vous avancez plus d&apos;argent au départ (le solde suit
+                    plus tard — ce n&apos;est pas une réduction du prix total).
+                  </p>
+                )}
               </div>
             )}
           </dl>
