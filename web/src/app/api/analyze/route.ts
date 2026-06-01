@@ -129,10 +129,14 @@ export async function POST(req: NextRequest) {
     if (full.input.siret) {
       const siretLimit = checkRateLimit(`siret:${ip}`);
       if (siretLimit.ok) {
-        const { verifySiret } = await import("@/lib/siret-verify");
-        const { applySiretVerification } = await import("@/lib/siret-enrich");
-        const verification = await verifySiret(full.input.siret);
-        applySiretVerification(full, verification);
+        const { verifyCompanyRegistry } = await import("@/lib/registry-verify");
+        const { applyCompanyRegistryVerification } = await import("@/lib/siret-enrich");
+        const registry = await verifyCompanyRegistry(full.input.siret, {
+          quoteText: full.input.quoteText,
+          workType: full.input.workType,
+          totalAmount: full.input.totalAmount,
+        });
+        applyCompanyRegistryVerification(full, registry);
       }
     }
 

@@ -67,7 +67,7 @@ export function toFreePreview(full: AnalysisResult): AnalysisResult {
     legalChecks: full.legalChecks.map((c) => ({
       label: c.passed ? "Point conforme" : "Point à vérifier",
       passed: c.passed,
-      detail: c.label.includes("SIRET")
+      detail: c.label.includes("SIRET") || c.label.includes("RGE") || c.label.includes("décennale")
         ? c.detail
         : "Détail disponible dans le rapport complet.",
     })),
@@ -76,6 +76,8 @@ export function toFreePreview(full: AnalysisResult): AnalysisResult {
     isPaid: false,
     plan: "free",
     siretVerification: full.siretVerification,
+    rgeVerification: full.rgeVerification,
+    decennaleVerification: full.decennaleVerification,
     input: {
       ...full.input,
       quoteText: "[Contenu masqué — débloquez le rapport]",

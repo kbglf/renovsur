@@ -1,4 +1,5 @@
 import type { QuoteInput } from "../types";
+import { needsDecennaleCheck, needsRgeCheck } from "../registry-verify";
 
 export interface LegalCheck {
   label: string;
@@ -51,14 +52,21 @@ export function runLegalChecks(input: QuoteInput): LegalCheck[] {
   const hasDecennale =
     input.hasDecennale ||
     /d[ée]cennale|assurance.{0,30}responsabilit/i.test(text);
-  checks.push({
-    label: "Assurance décennale",
-    passed: Boolean(hasDecennale),
-    detail: hasDecennale
-      ? "Mention d'assurance décennale détectée."
-      : "Pour les travaux structurels, l'assurance décennale est obligatoire. Exigez le numéro de police.",
-    weight: 20,
-  });
+  const decennaleRequired = needsDecennaleCheck(
+    input.quoteText,
+    input.workType,
+    input.totalAmount,
+  );
+  if (decennaleRequired) {
+    checks.push({
+      label: "Assurance décennale",
+      passed: Boolean(hasDecennale),
+      detail: hasDecennale
+        ? "Mention d'assurance décennale détectée — confirmation auprès de l'assureur recommandée."
+        : "Pour ces travaux, l'assurance décennale est obligatoire. Exigez le numéro de police.",
+      weight: 20,
+    });
+  }
 
   const deposit = input.depositPercent ?? extractDeposit(text);
   const depositOk = deposit === undefined || deposit <= 30;
@@ -108,7 +116,7 @@ export function runLegalChecks(input: QuoteInput): LegalCheck[] {
 
   const hasRge =
     /rge|reconnu\s+garant|qualibat|qualifelec/i.test(text);
-  const needsRge = /isolation|pompe|chaudière|photovoltaïque|maprimerenov/i.test(text);
+  const needsRge = needsRgeCheck(input.quoteText, input.workType);
   if (needsRge) {
     checks.push({
       label: "Label RGE (travaux énergétiques)",

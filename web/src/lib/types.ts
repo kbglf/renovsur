@@ -1,4 +1,8 @@
-import type { SiretVerification } from "./siret-verify";
+import type {
+  DecennaleVerification,
+  RgeVerification,
+  SiretVerification,
+} from "./registry-verify";
 
 export type WorkType =
   | "peinture"
@@ -78,6 +82,8 @@ export interface AnalysisResult {
   email?: string;
   paidWithCredit?: boolean;
   siretVerification?: SiretVerification;
+  rgeVerification?: RgeVerification;
+  decennaleVerification?: DecennaleVerification;
 }
 
 export type PlanId = "complete" | "negotiation" | "compare3";
