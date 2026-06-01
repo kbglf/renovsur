@@ -1,6 +1,16 @@
 # Checklist mise en ligne — RénovSûr
 
-## Étape 1 — Code sur GitHub (15 min)
+## Maintenant (vous + Vercel)
+
+Le site est en ligne. **Prochaine étape : activer les paiements.**
+
+1. Suivre **`STRIPE-RESEND-SETUP.md`** (guide détaillé Stripe + Resend + mentions légales)
+2. Vérifier : `https://renovsur.vercel.app/api/health` → `readiness.launchReady: true`
+3. Montrer le produit : **`/exemple-rapport`** (rapport fictif complet, sans payer)
+
+---
+
+## Étape 1 — Code sur GitHub (15 min) ✅
 
 ```bash
 cd /Users/kglf/Desktop/Bureau/AppV1

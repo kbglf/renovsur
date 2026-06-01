@@ -63,10 +63,16 @@ export default function HomePage() {
                 <ArrowRight className="h-5 w-5" />
               </Link>
               <Link
+                href="/exemple-rapport"
+                className="text-sm font-semibold text-slate-600 hover:text-emerald-700"
+              >
+                Voir un exemple de rapport →
+              </Link>
+              <Link
                 href="/tarifs"
                 className="text-sm font-semibold text-slate-600 hover:text-emerald-700"
               >
-                Voir les tarifs →
+                Tarifs
               </Link>
             </div>
             <p className="mt-6 text-xs text-slate-500">

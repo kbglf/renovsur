@@ -25,6 +25,7 @@ export function ResultatsClient({
   realSavings,
   showPaidSuccess,
   paymentNotice,
+  demoMode,
 }: {
   reportId: string;
   initialReport: AnalysisResult | null;
@@ -33,6 +34,8 @@ export function ResultatsClient({
   realSavings?: number;
   showPaidSuccess?: boolean;
   paymentNotice?: "cancel" | "error" | null;
+  /** Rapport fictif sur /exemple-rapport — pas d'appels API */
+  demoMode?: boolean;
 }) {
   const [report, setReport] = useState<AnalysisResult | null>(initialReport);
   const [loading, setLoading] = useState(!initialReport);
@@ -40,7 +43,7 @@ export function ResultatsClient({
   const [loadingFull, setLoadingFull] = useState(false);
 
   useEffect(() => {
-    if (initialReport) return;
+    if (demoMode || initialReport) return;
 
     const cached = loadReportFromSession(reportId);
     if (cached) {
@@ -64,7 +67,7 @@ export function ResultatsClient({
         setLoadError("Impossible de charger le rapport. Vérifiez votre connexion.");
       })
       .finally(() => setLoading(false));
-  }, [reportId, initialReport]);
+  }, [reportId, initialReport, demoMode]);
 
   async function loadFullReport() {
     if (!report) return;
@@ -81,6 +84,7 @@ export function ResultatsClient({
   }
 
   useEffect(() => {
+    if (demoMode) return;
     if (!report || !report.isPaid) {
       if (!report) return;
       const interval = setInterval(() => {
@@ -94,7 +98,7 @@ export function ResultatsClient({
       return () => clearInterval(interval);
     }
     loadFullReport();
-  }, [report?.id, report?.isPaid]);
+  }, [report?.id, report?.isPaid, demoMode]);
 
   if (loading) {
     return (
@@ -151,9 +155,11 @@ export function ResultatsClient({
             Résultat de l&apos;analyse
           </h1>
         </div>
-        <div className="no-print flex justify-center sm:justify-end">
-          <CopyReportLink reportId={report.id} />
-        </div>
+        {!demoMode && (
+          <div className="no-print flex justify-center sm:justify-end">
+            <CopyReportLink reportId={report.id} />
+          </div>
+        )}
       </div>
 
       <div className="mt-10 flex flex-col items-center gap-8 rounded-3xl border border-slate-100 bg-white p-8 shadow-lg sm:flex-row sm:justify-around">
