@@ -6,7 +6,7 @@ import type {
   QuoteInput,
   QuoteLine,
 } from "../types";
-import { runLegalChecks, computeLegalScore } from "./legal-checks";
+import { runLegalChecks, computeLegalScore, buildLegalAlerts } from "./legal-checks";
 import { detectScamPatterns } from "./scam-patterns";
 import {
   buildNegotiationLetter,
@@ -19,7 +19,11 @@ import {
   detectWorkType,
   getRegionalPrice,
 } from "./price-benchmarks";
-import { extractTotalFromText, parseLinesFromText } from "../quote-parse";
+import {
+  extractDepositPercent,
+  extractTotalFromText,
+  parseLinesFromText,
+} from "../quote-parse";
 import {
   computeSavingsFromComparisons,
   savingsFromComparison,
@@ -40,13 +44,6 @@ function extractArtisanName(text: string): string | undefined {
     );
   });
   return line?.trim();
-}
-
-function extractDepositPercent(text: string): number | undefined {
-  const match = text.match(/acompte.{0,40}(\d+)\s*%/i);
-  if (!match) return undefined;
-  const n = parseInt(match[1], 10);
-  return n > 0 && n <= 100 ? n : undefined;
 }
 
 export { isMeaningfulSavings } from "../price-savings";
@@ -262,7 +259,11 @@ export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
   const scamAlerts = detectScamPatterns(input);
   const priceComparisons = buildPriceComparisons(input);
   const priceAlerts = buildPriceAlerts(priceComparisons);
-  const allAlerts = [...scamAlerts, ...priceAlerts].sort((a, b) => {
+  const legalAlerts = buildLegalAlerts(
+    legalChecks,
+    new Set([...scamAlerts, ...priceAlerts].map((a) => a.id)),
+  );
+  const allAlerts = [...scamAlerts, ...priceAlerts, ...legalAlerts].sort((a, b) => {
     const order = { critical: 0, warning: 1, info: 2 };
     return order[a.severity] - order[b.severity];
   });

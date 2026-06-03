@@ -69,7 +69,11 @@ export function applyCompanyRegistryVerification(
 
   if (alerts.length > 0) {
     const ids = new Set(alerts.map((a) => a.id));
-    report.alerts = report.alerts.filter((a) => !ids.has(a.id));
+    report.alerts = report.alerts.filter(
+      (a) =>
+        !ids.has(a.id) &&
+        !(ids.has("siret-registry") && a.id === "legal-siret"),
+    );
     report.alerts.unshift(...alerts);
     refreshReportScore(report);
   }

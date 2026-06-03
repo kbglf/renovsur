@@ -1,4 +1,5 @@
-import type { QuoteInput } from "../types";
+import type { Alert, QuoteInput } from "../types";
+import { extractDepositPercent } from "../quote-parse";
 import { needsDecennaleCheck, needsRgeCheck } from "../registry-verify";
 
 export interface LegalCheck {
@@ -68,7 +69,7 @@ export function runLegalChecks(input: QuoteInput): LegalCheck[] {
     });
   }
 
-  const deposit = input.depositPercent ?? extractDeposit(text);
+  const deposit = input.depositPercent ?? extractDepositPercent(text);
   const depositOk = deposit === undefined || deposit <= 30;
   checks.push({
     label: "Acompte raisonnable (≤ 30%)",
@@ -141,9 +142,56 @@ export function runLegalChecks(input: QuoteInput): LegalCheck[] {
   return checks;
 }
 
-function extractDeposit(text: string): number | undefined {
-  const match = text.match(/acompte.{0,30}(\d+)\s*%/i);
-  return match ? parseInt(match[1], 10) : undefined;
+function legalAlertId(label: string): string {
+  if (label.includes("SIRET")) return "legal-siret";
+  if (label.includes("validité")) return "legal-validity";
+  if (label.includes("TVA")) return "legal-tva";
+  if (label.includes("décennale")) return "legal-decennale";
+  if (label.includes("Acompte")) return "legal-deposit";
+  if (label.includes("Description")) return "legal-detail";
+  if (label.includes("Coordonnées")) return "legal-address";
+  if (label.includes("RGE")) return "legal-rge";
+  if (label.includes("pénalités") || label.includes("délai")) return "legal-penalties";
+  return "legal-other";
+}
+
+/** Alertes issues des contrôles légaux (évite score rouge sans aucune alerte visible) */
+export function buildLegalAlerts(
+  checks: LegalCheck[],
+  existingIds: Set<string>,
+): Alert[] {
+  const alerts: Alert[] = [];
+
+  for (const check of checks) {
+    if (check.passed || check.weight < 10) continue;
+
+    const id = legalAlertId(check.label);
+    if (existingIds.has(id) || existingIds.has("scam-deposit") && id === "legal-deposit") {
+      continue;
+    }
+    if (alerts.some((a) => a.id === id)) continue;
+
+    const depositOver50 =
+      id === "legal-deposit" &&
+      /acompte de (\d+)/i.test(check.detail) &&
+      parseInt(check.detail.match(/acompte de (\d+)/i)![1], 10) > 50;
+
+    alerts.push({
+      id,
+      severity:
+        id === "legal-decennale" || depositOver50 ? "critical" : "warning",
+      title: check.label,
+      description: check.detail,
+      recommendation:
+        id === "legal-siret"
+          ? "Exigez le SIRET à 14 chiffres et vérifiez-le sur annuaire-entreprises.data.gouv.fr."
+          : id === "legal-decennale"
+            ? "Demandez l'attestation décennale avant tout paiement."
+            : "Corrigez ce point par écrit avec l'artisan avant signature.",
+    });
+  }
+
+  return alerts;
 }
 
 export function computeLegalScore(checks: LegalCheck[]): number {

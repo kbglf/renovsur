@@ -71,6 +71,14 @@ export function parseLinesFromText(text: string): QuoteLine[] {
   return lines;
 }
 
+/** Acompte en % — évite de capturer un chiffre d'une autre ligne (ex. « 55 » lu comme « 5 » + « 5% ») */
+export function extractDepositPercent(text: string): number | undefined {
+  const match = text.match(/acompte[^%\d\n]{0,40}(\d{1,3})\s*%/i);
+  if (!match) return undefined;
+  const n = parseInt(match[1], 10);
+  return n > 0 && n <= 100 ? n : undefined;
+}
+
 export function extractTotalFromText(text: string, lines: QuoteLine[]): number {
   const totals = extractQuoteTotals(text);
   if (totals.ttc) return totals.ttc;
