@@ -41,6 +41,7 @@ export function QuoteForm() {
   const [surfaceM2, setSurfaceM2] = useState("");
   const [totalAmount, setTotalAmount] = useState("");
   const [depositPercent, setDepositPercent] = useState("");
+  const [providerSiret, setProviderSiret] = useState("");
 
   function loadSample() {
     setQuoteText(SAMPLE_QUOTE);
@@ -72,6 +73,7 @@ export function QuoteForm() {
           surfaceM2: surfaceM2 ? parseFloat(surfaceM2) : undefined,
           totalAmount: totalAmount ? parseFloat(totalAmount) : undefined,
           depositPercent: depositPercent ? parseFloat(depositPercent) : undefined,
+          providerSiret: providerSiret.replace(/\s/g, "") || undefined,
           email: email || undefined,
         }),
       });
@@ -246,6 +248,24 @@ export function QuoteForm() {
           placeholder="Ex: 30"
           className="w-full max-w-xs rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-400"
         />
+      </div>
+
+      <div>
+        <label htmlFor="providerSiret" className="mb-2 block text-sm font-semibold text-slate-800">
+          SIRET du prestataire (optionnel)
+        </label>
+        <input
+          id="providerSiret"
+          type="text"
+          inputMode="numeric"
+          value={providerSiret}
+          onChange={(e) => setProviderSiret(e.target.value)}
+          placeholder="14 chiffres — si le devis en contient plusieurs"
+          className="w-full max-w-md rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-emerald-400"
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Utile si le devis mentionne aussi le SIRET du client (devis entre entreprises).
+        </p>
       </div>
 
       {error && (

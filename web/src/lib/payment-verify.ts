@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import { getStripe, PLANS, type PlanId } from "./stripe";
-import { getReport, updateReportPlan } from "./db";
+import { getReport, updateReportPlan, saveReport } from "./db";
 import { addCredits, getCredits } from "./credits";
 import { isSessionProcessed, markSessionProcessed } from "./stripe-idempotency";
 import { sendReportReadyEmail } from "./email";
@@ -53,8 +53,16 @@ export async function fulfillCheckoutSession(
   }
 
   if (!alreadyProcessed && !report.isPaid) {
-    await updateReportPlan(reportId, planId);
+    const updated = await updateReportPlan(reportId, planId);
     await markSessionProcessed({ sessionId, planId, reportId });
+    if (updated) {
+      const { enrichReport } = await import("@/lib/report-enrich");
+      await enrichReport(updated, {
+        useAi: true,
+        providerSiretHint: updated.input.providerSiret,
+      });
+      await saveReport(updated);
+    }
   }
 
   const updated = (await getReport(reportId)) ?? report;

@@ -12,6 +12,7 @@ export async function GET() {
   const auth = configured(process.env.AUTH_SECRET) && (process.env.AUTH_SECRET?.length ?? 0) >= 32;
   const blob = configured(process.env.BLOB_READ_WRITE_TOKEN);
   const appUrl = configured(process.env.NEXT_PUBLIC_APP_URL);
+  const openai = configured(process.env.OPENAI_API_KEY);
   const legal =
     Boolean(getLegalField("company")) &&
     Boolean(getLegalField("siret")) &&
@@ -35,6 +36,7 @@ export async function GET() {
       blob,
       appUrl,
       legal,
+      openai,
     },
     missing: [
       !stripe && "STRIPE_SECRET_KEY",

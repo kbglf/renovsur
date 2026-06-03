@@ -32,6 +32,58 @@ export function extractQuoteTotals(text: string): QuoteTotals {
   };
 }
 
+function parseTableLineChunk(line: string): QuoteLine | null {
+  const trimmed = line.replace(/\t+/g, " ").trim();
+  if (trimmed.length < 8) return null;
+  if (METADATA_LINE.test(trimmed) || SUMMARY_LINE.test(trimmed)) return null;
+  if (/^description\s/i.test(trimmed)) return null;
+
+  const withDate =
+    /^(.+?)\s+\d{1,2}\/\d{1,2}\/\d{2,4}\s+([\d,]+)\s+(pce|u\.?|unité|unité|m²|m2)\s+([\d\s,]*)\s*€?\s*([\d\s,]+)\s*€\s*$/i.exec(
+      trimmed,
+    );
+  if (withDate) {
+    const total = parseFrenchEuroAmount(withDate[5]);
+    if (!total || total < 10) return null;
+    const qty = parseFrenchEuroAmount(withDate[2].replace(",", "."));
+    const unit = withDate[3].toLowerCase();
+    const unitPriceRaw = withDate[4].trim();
+    const unitPrice = unitPriceRaw
+      ? parseFrenchEuroAmount(unitPriceRaw)
+      : qty && qty > 0
+        ? Math.round(total / qty)
+        : undefined;
+    const description = withDate[1].trim().replace(/\s+/g, " ");
+    if (description.length < 3) return null;
+    return {
+      description,
+      quantity: qty ?? undefined,
+      unit,
+      unitPrice: unitPrice ?? undefined,
+      total,
+    };
+  }
+
+  const simpleTable =
+    /^(.+?)\s+([\d,]+)\s+(pce|u\.?|unité|m²|m2)\s+([\d\s,]+)\s*€\s+([\d\s,]+)\s*€\s*$/i.exec(
+      trimmed,
+    );
+  if (simpleTable) {
+    const total = parseFrenchEuroAmount(simpleTable[5]);
+    if (!total || total < 10) return null;
+    const qty = parseFrenchEuroAmount(simpleTable[2].replace(",", "."));
+    return {
+      description: simpleTable[1].trim().replace(/\s+/g, " "),
+      quantity: qty ?? undefined,
+      unit: simpleTable[3].toLowerCase(),
+      unitPrice: parseFrenchEuroAmount(simpleTable[4]) ?? undefined,
+      total,
+    };
+  }
+
+  return null;
+}
+
 function parseLineChunk(line: string): QuoteLine | null {
   const trimmed = line.trim();
   if (trimmed.length < 5) return null;
@@ -60,7 +112,7 @@ export function parseLinesFromText(text: string): QuoteLine[] {
   const seen = new Set<string>();
 
   for (const rawLine of text.split("\n")) {
-    const parsed = parseLineChunk(rawLine);
+    const parsed = parseTableLineChunk(rawLine) ?? parseLineChunk(rawLine);
     if (!parsed) continue;
     const key = `${parsed.description}|${parsed.total}`;
     if (seen.has(key)) continue;
@@ -99,3 +151,10 @@ export function extractTotalFromText(text: string, lines: QuoteLine[]): number {
 
   return 0;
 }
+
+export function extractFirstSiret(text: string): string | undefined {
+  const m = text.match(/\b(\d{3}\s?\d{3}\s?\d{3}\s?\d{5})\b/);
+  return m?.[1].replace(/\s/g, "");
+}
+
+export { extractSiretCandidates } from "./siret-roles";

@@ -33,6 +33,7 @@ const schema = z.object({
   totalAmount: z.number().positive().max(10_000_000).optional(),
   depositPercent: z.number().min(0).max(100).optional(),
   artisanName: z.string().max(200).optional(),
+  providerSiret: z.string().max(20).optional(),
   siret: z.string().max(20).optional(),
   email: z.string().email().optional(),
 });
@@ -126,18 +127,16 @@ export async function POST(req: NextRequest) {
 
     const full = analyzeQuote(parsed.data);
 
-    if (full.input.siret) {
-      const siretLimit = checkRateLimit(`siret:${ip}`);
-      if (siretLimit.ok) {
-        const { verifyCompanyRegistry } = await import("@/lib/registry-verify");
-        const { applyCompanyRegistryVerification } = await import("@/lib/siret-enrich");
-        const registry = await verifyCompanyRegistry(full.input.siret, {
-          quoteText: full.input.quoteText,
-          workType: full.input.workType,
-          totalAmount: full.input.totalAmount,
-        });
-        applyCompanyRegistryVerification(full, registry);
-      }
+    const providerHint = parsed.data.providerSiret;
+    const useAi = Boolean(consumedPlan);
+
+    const { enrichReport } = await import("@/lib/report-enrich");
+    const siretLimit = checkRateLimit(`siret:${ip}`);
+    if (siretLimit.ok) {
+      await enrichReport(full, {
+        useAi,
+        providerSiretHint: providerHint,
+      });
     }
 
     if (consumedPlan) {

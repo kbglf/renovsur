@@ -35,7 +35,10 @@ export interface QuoteLine {
 
 export interface QuoteInput {
   artisanName?: string;
+  /** @deprecated Préférer providerSiret */
   siret?: string;
+  providerSiret?: string;
+  clientSiret?: string;
   quoteText: string;
   lines: QuoteLine[];
   totalAmount: number;
@@ -97,8 +100,16 @@ export interface AnalysisResult {
   email?: string;
   paidWithCredit?: boolean;
   siretVerification?: SiretVerification;
+  /** Prestataire / artisan */
+  providerSiretVerification?: SiretVerification;
+  /** Client / donneur d'ordre (devis B2B) */
+  clientSiretVerification?: SiretVerification;
   rgeVerification?: RgeVerification;
   decennaleVerification?: DecennaleVerification;
+  /** Synthèse rédigée (rapport payant + IA) */
+  analysisInsights?: string;
+  aiEnhanced?: boolean;
+  partyResolution?: { confidence: string; reasoning: string[] };
 }
 
 export type PlanId = "complete" | "negotiation" | "compare3";

@@ -2,9 +2,7 @@ import { randomUUID } from "crypto";
 import type {
   Alert,
   AnalysisResult,
-  PriceComparison,
   QuoteInput,
-  QuoteLine,
 } from "../types";
 import { runLegalChecks, computeLegalScore, buildLegalAlerts } from "./legal-checks";
 import { detectScamPatterns } from "./scam-patterns";
@@ -12,27 +10,20 @@ import {
   buildNegotiationLetter,
   generateNegotiationAdvice,
 } from "./negotiation-letter";
-import { formatEuro } from "../utils";
 import {
-  BENCHMARKS,
-  REGION_LABELS,
-  detectWorkType,
-  getRegionalPrice,
-} from "./price-benchmarks";
+  buildPriceComparisons,
+  buildPriceAlerts,
+} from "./price-analysis";
+import { detectWorkType } from "./price-benchmarks";
 import {
   extractDepositPercent,
+  extractFirstSiret,
   extractTotalFromText,
   parseLinesFromText,
 } from "../quote-parse";
 import {
   computeSavingsFromComparisons,
-  savingsFromComparison,
 } from "../price-savings";
-
-function extractSiret(text: string): string | undefined {
-  const match = text.match(/\b(\d{3}\s?\d{3}\s?\d{3}\s?\d{5})\b/);
-  return match?.[1].replace(/\s/g, "");
-}
 
 function extractArtisanName(text: string): string | undefined {
   const line = text.split("\n").find((l) => {
@@ -47,6 +38,7 @@ function extractArtisanName(text: string): string | undefined {
 }
 
 export { isMeaningfulSavings } from "../price-savings";
+export { buildPriceComparisons, buildPriceAlerts } from "./price-analysis";
 
 /** Surface en m² dans une ligne ou le devis (ex. « 35 m² ») */
 function extractSurfaceM2(text: string): number | undefined {
@@ -57,28 +49,6 @@ function extractSurfaceM2(text: string): number | undefined {
   if (!match) return undefined;
   const n = parseFloat(match[1].replace(",", "."));
   return n > 0 && n < 10_000 ? n : undefined;
-}
-
-/**
- * Estime un prix marché pour une ligne (uniquement si unité m² + quantité connue).
- * Évite de comparer 980 € total à 28 €/m² sans surface — source du bug « économies > devis ».
- */
-function estimateLineMarketTotal(
-  line: QuoteLine,
-  region: QuoteInput["region"],
-): number | null {
-  const lineType = detectWorkType(line.description);
-  const bench = BENCHMARKS[lineType];
-  if (bench.unit !== "m²") return null;
-
-  const qty =
-    line.quantity ??
-    extractSurfaceM2(line.description) ??
-    (line.unit?.toLowerCase().includes("m") ? line.quantity : undefined);
-  if (!qty || qty <= 0) return null;
-
-  const unitPrice = getRegionalPrice(bench.basePrice, region);
-  return Math.round(unitPrice * qty);
 }
 
 /** @deprecated Préférer computeSavingsFromComparisons */
@@ -93,70 +63,27 @@ export function computeTotalSavingsEstimate(
   return Math.min(Math.round(raw), totalAmount);
 }
 
-function buildPriceComparisons(input: QuoteInput): PriceComparison[] {
-  const regionLabel = REGION_LABELS[input.region];
-  const comparisons: PriceComparison[] = [];
-
-  for (const line of input.lines.slice(0, 8)) {
-    if (!line.total || line.total <= 0) continue;
-    const qty = line.quantity ?? extractSurfaceM2(line.description);
-    const lineType = detectWorkType(line.description);
-    const lineBench = BENCHMARKS[lineType];
-
-    if (lineBench.unit !== "m²" || !qty || qty <= 0) continue;
-
-    const marketUnitLine = getRegionalPrice(lineBench.basePrice, input.region);
-    const marketTotal = Math.round(marketUnitLine * qty);
-    const yourPerM2 = Math.round(line.total / qty);
-    const deviation = ((line.total - marketTotal) / marketTotal) * 100;
-
-    if (Math.abs(deviation) <= 15) continue;
-
-    comparisons.push({
-      item: line.description.slice(0, 80),
-      yourPrice: line.total,
-      marketAverage: marketTotal,
-      deviationPercent: Math.round(deviation),
-      status:
-        deviation > 40 ? "very_high" : deviation > 20 ? "high" : "ok",
-      scope: "line_total",
-      unit: "m²",
-      quantity: qty,
-      yourUnitPrice: yourPerM2,
-      marketUnitPrice: marketUnitLine,
-      explanation:
-        `Sur votre devis : ${formatEuro(line.total)} pour ${qty} m², soit environ ${yourPerM2} €/m². ` +
-        `Repère indicatif (${regionLabel}) : ~${lineBench.basePrice} €/m² national → ${marketUnitLine} €/m² × ${qty} m² ≈ ${formatEuro(marketTotal)}. ` +
-        `Écart sur ce poste : ${deviation > 0 ? "+" : ""}${Math.round(deviation)} %.`,
-    });
-  }
-
-  return comparisons;
-}
-
-function buildPriceAlerts(comparisons: PriceComparison[]): Alert[] {
-  return comparisons
-    .filter((c) => c.status !== "ok")
-    .map((c, i) => ({
-      id: `price-${i}`,
-      severity: c.status === "very_high" ? ("critical" as const) : ("warning" as const),
-      title:
-        c.status === "very_high"
-          ? `Prix très élevé : ${c.item}`
-          : `Prix au-dessus du marché : ${c.item}`,
-      description:
-        c.explanation ??
-        `Écart estimé de ${c.deviationPercent > 0 ? "+" : ""}${c.deviationPercent} % sur ce poste.`,
-      recommendation:
-        "Demandez une justification écrite ou un devis concurrent pour négocier à la baisse.",
-      savingsEstimate: savingsFromComparison(c),
-    }));
+export function refreshPriceAnalysis(report: AnalysisResult): void {
+  const priceComparisons = buildPriceComparisons(report.input);
+  const priceAlerts = buildPriceAlerts(priceComparisons);
+  report.priceComparisons = priceComparisons;
+  report.alerts = [
+    ...report.alerts.filter((a) => !a.id.startsWith("price-")),
+    ...priceAlerts,
+  ].sort((a, b) => {
+    const order = { critical: 0, warning: 1, info: 2 };
+    return order[a.severity] - order[b.severity];
+  });
+  report.totalSavingsEstimate = computeSavingsFromComparisons(
+    priceComparisons,
+    report.input.totalAmount,
+  );
 }
 
 function computeGlobalScore(
   legalScore: number,
   alerts: Alert[],
-  comparisons: PriceComparison[],
+  comparisons: AnalysisResult["priceComparisons"],
 ): number {
   let score = legalScore * 0.5;
   const priceOk = comparisons.filter((c) => c.status === "ok").length;
@@ -234,19 +161,21 @@ export function analyzeQuote(raw: Partial<QuoteInput>): AnalysisResult {
     ? raw.lines
     : parseLinesFromText(quoteText);
   const totalAmount = raw.totalAmount || extractTotalFromText(quoteText, lines);
-  const siret = raw.siret || extractSiret(quoteText);
-  const surfaceM2 = raw.surfaceM2 ?? extractSurfaceM2(quoteText);
+  const extractedSiret = extractFirstSiret(quoteText);
+  const siret = raw.siret ?? raw.providerSiret ?? extractedSiret;
 
   const input: QuoteInput = {
     artisanName:
       raw.artisanName?.trim() ||
       extractArtisanName(quoteText),
     siret,
+    providerSiret: raw.providerSiret,
+    clientSiret: raw.clientSiret,
     quoteText,
     lines,
     totalAmount,
     workType: raw.workType || detectWorkType(quoteText),
-    surfaceM2,
+    surfaceM2: raw.surfaceM2 ?? extractSurfaceM2(quoteText),
     region: raw.region || "autre",
     hasDecennale: raw.hasDecennale,
     validityDays: raw.validityDays,

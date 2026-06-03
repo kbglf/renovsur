@@ -163,6 +163,22 @@ function nafLabel(code: string): string {
   return labels[code] ?? `Activité NAF ${code}`;
 }
 
+/** NAF BTP / construction / peinture (section F, divisions 41–43) et peinture 43.34 */
+export function isTradeNaf(code: string | undefined): boolean {
+  if (!code) return false;
+  const n = code.replace(/\s/g, "");
+  return /^(41|42|43)\./.test(n);
+}
+
+export async function lookupSiretRegistry(rawSiret: string): Promise<SiretVerification> {
+  const bundle = await verifyCompanyRegistry(rawSiret, {
+    quoteText: "",
+    workType: "autre",
+    totalAmount: 0,
+  });
+  return bundle.siret;
+}
+
 export function needsRgeCheck(quoteText: string, workType: WorkType): boolean {
   if (ENERGY_KEYWORDS.test(quoteText)) return true;
   return ["isolation", "toiture", "menuiserie"].includes(workType);

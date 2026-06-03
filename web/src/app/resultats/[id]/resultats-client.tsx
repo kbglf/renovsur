@@ -225,15 +225,36 @@ export function ResultatsClient({
         <Disclaimer />
       </div>
 
-      {(report.siretVerification || report.rgeVerification || report.decennaleVerification) && (
+      {(report.siretVerification ||
+        report.providerSiretVerification ||
+        report.clientSiretVerification ||
+        report.rgeVerification ||
+        report.decennaleVerification) && (
         <div className="mt-8">
           <RegistryVerificationCards
             siret={report.siretVerification}
+            providerSiret={report.providerSiretVerification}
+            clientSiret={report.clientSiretVerification}
             rge={report.rgeVerification}
             decennale={report.decennaleVerification}
             compact={!isPaid}
           />
         </div>
+      )}
+
+      {isPaid && report.analysisInsights && (
+        <section className="mt-8 rounded-2xl border border-slate-100 bg-slate-50 p-6">
+          <h2 className="text-lg font-bold text-slate-900">Synthèse détaillée</h2>
+          <p className="mt-3 text-sm leading-relaxed text-slate-700">
+            {report.analysisInsights}
+          </p>
+          {report.aiEnhanced && (
+            <p className="mt-3 text-xs text-slate-500">
+              Lecture intelligente du devis — vérifiez les points clés avec l&apos;artisan avant
+              signature.
+            </p>
+          )}
+        </section>
       )}
 
       {!isPaid && (

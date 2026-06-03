@@ -158,51 +158,83 @@ function VerificationBlock({
 
 export function RegistryVerificationCards({
   siret,
+  providerSiret,
+  clientSiret,
   rge,
   decennale,
   compact,
 }: {
   siret?: SiretVerification;
+  providerSiret?: SiretVerification;
+  clientSiret?: SiretVerification;
   rge?: RgeVerification;
   decennale?: DecennaleVerification;
   compact?: boolean;
 }) {
+  const provider = providerSiret ?? siret;
   const showRge = rge && (rge.required || rge.certificationCodes.length > 0);
   const showDecennale = decennale && decennale.required;
 
-  if (!siret && !showRge && !showDecennale) return null;
+  if (!provider && !clientSiret && !showRge && !showDecennale) return null;
 
   return (
     <div className="space-y-4">
-      {siret && (
+      {clientSiret && (
         <VerificationBlock
-          title="Vérification SIRET"
+          title="Client (donneur d'ordre)"
           icon={Building2}
-          ui={SIRET_STATUS_UI[siret.status]}
-          summary={siret.summary}
-          source={`Source : registre national (API data.gouv.fr), le ${new Date(siret.verifiedAt).toLocaleString("fr-FR")}.`}
+          ui={SIRET_STATUS_UI[clientSiret.status]}
+          summary={clientSiret.summary}
+          source={`Source : registre national (API data.gouv.fr), le ${new Date(clientSiret.verifiedAt).toLocaleString("fr-FR")}.`}
           link={
-            siret.registryUrl
-              ? { href: siret.registryUrl, label: "Voir la fiche officielle" }
+            clientSiret.registryUrl
+              ? { href: clientSiret.registryUrl, label: "Voir la fiche officielle" }
               : undefined
           }
         >
-          {!compact && siret.companyName && (
+          {!compact && clientSiret.companyName && (
             <p className="mt-2 text-sm">
-              <strong>Raison sociale :</strong> {siret.companyName}
+              <strong>Raison sociale :</strong> {clientSiret.companyName}
             </p>
           )}
-          {!compact && siret.address && (
+          {!compact && clientSiret.activityCode && (
             <p className="mt-1 text-sm">
-              <strong>Adresse :</strong> {siret.address}
+              <strong>Code NAF :</strong> {clientSiret.activityCode}
             </p>
           )}
-          {!compact && siret.activityCode && (
+          <p className="mt-2 font-mono text-sm opacity-90">{formatSiret(clientSiret.siret)}</p>
+        </VerificationBlock>
+      )}
+
+      {provider && (
+        <VerificationBlock
+          title="Prestataire (artisan / entreprise)"
+          icon={Building2}
+          ui={SIRET_STATUS_UI[provider.status]}
+          summary={provider.summary}
+          source={`Source : registre national (API data.gouv.fr), le ${new Date(provider.verifiedAt).toLocaleString("fr-FR")}.`}
+          link={
+            provider.registryUrl
+              ? { href: provider.registryUrl, label: "Voir la fiche officielle" }
+              : undefined
+          }
+        >
+          {!compact && provider.companyName && (
+            <p className="mt-2 text-sm">
+              <strong>Raison sociale :</strong> {provider.companyName}
+            </p>
+          )}
+          {!compact && provider.address && (
             <p className="mt-1 text-sm">
-              <strong>Code NAF :</strong> {siret.activityCode}
+              <strong>Adresse :</strong> {provider.address}
             </p>
           )}
-          <p className="mt-2 font-mono text-sm opacity-90">{formatSiret(siret.siret)}</p>
+          {!compact && provider.activityCode && (
+            <p className="mt-1 text-sm">
+              <strong>Code NAF :</strong> {provider.activityCode}
+            </p>
+          )}
+          <p className="mt-2 font-mono text-sm opacity-90">{formatSiret(provider.siret)}</p>
         </VerificationBlock>
       )}
 
